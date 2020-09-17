@@ -2,6 +2,7 @@ use crate::entry::Entry;
 use std::{
     fs,
     path::PathBuf,
+    process::Command,
 };
 use thiserror::Error;
 
@@ -18,6 +19,12 @@ pub enum Error {
 
     #[error("can not serialize entry: {0}")]
     SerializeEntry(csv::Error),
+
+    #[error("can not git add changes: {0}")]
+    GitAdd(std::io::Error),
+
+    #[error("can not git commit changes: {0}")]
+    GitCommit(std::io::Error),
 }
 
 pub struct Store {}
@@ -73,6 +80,32 @@ impl Store {
         let mut writer = builder.from_writer(index_file);
 
         writer.serialize(&entry).map_err(Error::SerializeEntry)?;
+
+        self.commit()?;
+
+        Ok(())
+    }
+
+    fn commit(&self) -> Result<(), Error> {
+        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
+        let datadir_path = xdg_dirs.get_data_home();
+
+        Command::new("git")
+            .arg("add")
+            .arg(":/")
+            .current_dir(&datadir_path)
+            .output()
+            .map_err(Error::GitAdd)?;
+
+        let hostname = hostname::get().map_err(Error::GetHostname)?;
+
+        Command::new("git")
+            .arg("commit")
+            .arg("-m")
+            .arg(format!("added changes from {:?}", hostname))
+            .current_dir(&datadir_path)
+            .output()
+            .map_err(Error::GitCommit)?;
 
         Ok(())
     }
