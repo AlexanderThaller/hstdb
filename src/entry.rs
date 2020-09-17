@@ -13,14 +13,15 @@ use serde::{
 use std::path::PathBuf;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Entry {
+    pub time_finished: DateTime<Utc>,
+    pub time_start: DateTime<Utc>,
+    pub hostname: String,
     pub command: String,
     pub pwd: PathBuf,
     pub result: usize,
     pub session_id: Uuid,
-    pub time_finished: DateTime<Utc>,
-    pub time_start: DateTime<Utc>,
     pub user: String,
 }
 
@@ -34,6 +35,7 @@ impl Entry {
             time_finished: finish.time_stamp,
             time_start: start.time_stamp,
             user: start.user,
+            hostname: start.hostname,
         }
     }
 }

@@ -4,15 +4,13 @@ mod message;
 mod server;
 mod store;
 
-use anyhow::{
-    anyhow,
-    Result,
-};
+use anyhow::Result;
 use message::{
     CommandFinished,
     CommandStart,
     Message,
 };
+use std::io::Write;
 use uuid::Uuid;
 
 fn main() -> Result<()> {
@@ -51,6 +49,17 @@ fn main() -> Result<()> {
             Ok(())
         }
 
-        _ => Err(anyhow!("unkown {}", command)),
+        _ => {
+            let stdout = std::io::stdout();
+            let mut handle = stdout.lock();
+
+            store::new()
+                .get_nth_entries(25)?
+                .into_iter()
+                .map(|entry| handle.write_all(format!("{:?}\n", entry).as_bytes()))
+                .collect::<Result<_, _>>()?;
+
+            Ok(())
+        }
     }
 }

@@ -1,16 +1,16 @@
 use crate::entry::Entry;
 use std::{
     fs,
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
     process::Command,
 };
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("can not get hostname: {0}")]
-    GetHostname(std::io::Error),
-
     #[error("can not create log folder: {0}")]
     CreateLogFolder(PathBuf, std::io::Error),
 
@@ -25,6 +25,15 @@ pub enum Error {
 
     #[error("can not git commit changes: {0}")]
     GitCommit(std::io::Error),
+
+    #[error("glob is not valid: {0}")]
+    InvalidGlob(glob::PatternError),
+
+    #[error("problem while iterating glob: {0}")]
+    GlobIteration(glob::GlobError),
+
+    #[error("can not read log file {0:?}: {1}")]
+    ReadLogFile(PathBuf, csv::Error),
 }
 
 pub struct Store {}
@@ -38,8 +47,6 @@ impl Store {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
-        let hostname = hostname::get().map_err(Error::GetHostname)?;
-
         let uuid = entry.session_id.to_string();
         let mut uuid = uuid.chars();
 
@@ -50,6 +57,8 @@ impl Store {
         let mut uuid_second_part = String::new();
         uuid_second_part.push(uuid.next().unwrap());
         uuid_second_part.push(uuid.next().unwrap());
+
+        let hostname = &entry.hostname;
 
         let folder_path = datadir_path
             .as_path()
@@ -81,12 +90,12 @@ impl Store {
 
         writer.serialize(&entry).map_err(Error::SerializeEntry)?;
 
-        self.commit()?;
+        self.commit(hostname)?;
 
         Ok(())
     }
 
-    fn commit(&self) -> Result<(), Error> {
+    fn commit(&self, hostname: &str) -> Result<(), Error> {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
@@ -97,8 +106,6 @@ impl Store {
             .output()
             .map_err(Error::GitAdd)?;
 
-        let hostname = hostname::get().map_err(Error::GetHostname)?;
-
         Command::new("git")
             .arg("commit")
             .arg("-m")
@@ -108,5 +115,50 @@ impl Store {
             .map_err(Error::GitCommit)?;
 
         Ok(())
+    }
+
+    pub fn get_nth_entries(&self, count: usize) -> Result<Vec<Entry>, Error> {
+        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
+        let datadir_path = xdg_dirs.get_data_home();
+
+        let glob_string = datadir_path.join("*").join("*").join("*").join("*.csv");
+
+        let glob = glob::glob(&glob_string.to_string_lossy()).map_err(Error::InvalidGlob)?;
+
+        let index_paths = glob
+            .collect::<Result<Vec<PathBuf>, glob::GlobError>>()
+            .map_err(Error::GlobIteration)?;
+
+        let mut entries: Vec<_> = index_paths
+            .into_iter()
+            .map(Self::read_metadata_file)
+            .collect::<Result<Vec<Vec<_>>, Error>>()?
+            .into_iter()
+            .flatten()
+            .collect();
+
+        entries.sort();
+
+        let entries = entries.into_iter().rev().take(count).collect();
+
+        Ok(entries)
+    }
+
+    fn read_metadata_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<Entry>, Error> {
+        let file = std::fs::File::open(&file_path)
+            .map_err(|err| Error::OpenLogFile(file_path.as_ref().to_path_buf(), err))?;
+
+        let reader = std::io::BufReader::new(file);
+
+        Self::read_metadata(reader)
+            .map_err(|err| Error::ReadLogFile(file_path.as_ref().to_path_buf(), err))
+    }
+
+    fn read_metadata<R: std::io::Read>(reader: R) -> Result<Vec<Entry>, csv::Error> {
+        let mut csv_reader = csv::ReaderBuilder::new().from_reader(reader);
+
+        csv_reader
+            .deserialize()
+            .collect::<Result<Vec<Entry>, csv::Error>>()
     }
 }

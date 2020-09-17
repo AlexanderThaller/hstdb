@@ -33,10 +33,7 @@ pub enum Error {
 
 impl Error {
     fn is_stop(&self) -> bool {
-        match self {
-            Self::Stop => true,
-            _ => false,
-        }
+        matches!(self, Self::Stop)
     }
 }
 

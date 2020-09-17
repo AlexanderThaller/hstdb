@@ -24,6 +24,9 @@ pub enum Message {
 
 #[derive(Error, Debug)]
 pub enum Error {
+    #[error("can not get hostname: {0}")]
+    GetHostname(std::io::Error),
+
     #[error("can not get current directory: {0}")]
     GetCurrentDir(std::io::Error),
 
@@ -53,11 +56,12 @@ pub struct CommandStart {
     pub session_id: Uuid,
     pub time_stamp: DateTime<Utc>,
     pub user: String,
+    pub hostname: String,
 }
 
 impl CommandStart {
     pub fn from_env() -> Result<Self, Error> {
-        let command = env::args().into_iter().skip(2).next().unwrap_or_default();
+        let command = env::args().into_iter().nth(2).unwrap_or_default();
 
         let pwd = env::current_dir().map_err(Error::GetCurrentDir)?;
 
@@ -74,12 +78,18 @@ impl CommandStart {
             Ok(s) => Uuid::parse_str(&s).map_err(Error::InvalidSessionID),
         }?;
 
+        let hostname = hostname::get()
+            .map_err(Error::GetHostname)?
+            .to_string_lossy()
+            .to_string();
+
         Ok(Self {
             command,
             pwd,
             session_id,
             time_stamp,
             user,
+            hostname,
         })
     }
 }

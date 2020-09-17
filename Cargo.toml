@@ -10,9 +10,10 @@ edition = "2018"
 anyhow = "1"
 bincode = "1"
 chrono = { version = "0.4", features = ["serde"] }
+csv = "1"
+glob = "0.3"
+hostname = "0.3"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 xdg = "2"
-hostname = "0.3.1"
-csv = "1.1.3"
