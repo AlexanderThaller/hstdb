@@ -54,9 +54,6 @@ impl Store {
             .join(entry.session_id.to_string())
             .with_extension("csv");
 
-        dbg!(&folder_path);
-        dbg!(&file_path);
-
         fs::create_dir_all(&folder_path)
             .map_err(|err| Error::CreateLogFolder(folder_path.to_path_buf(), err))?;
 
