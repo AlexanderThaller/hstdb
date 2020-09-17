@@ -1,0 +1,9 @@
+condense_wildcard_suffixes  =  true
+format_strings              =  true
+imports_indent              =  "Block"
+imports_layout              =  "Vertical"
+merge_imports               =  true
+normalize_comments          =  true
+reorder_imports             =  true
+use_try_shorthand           =  true
+wrap_comments               =  true
