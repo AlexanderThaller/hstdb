@@ -61,7 +61,12 @@ pub struct CommandStart {
 
 impl CommandStart {
     pub fn from_env() -> Result<Self, Error> {
-        let command = env::args().into_iter().nth(2).unwrap_or_default();
+        let command = env::args()
+            .into_iter()
+            .nth(2)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
 
         let pwd = env::current_dir().map_err(Error::GetCurrentDir)?;
 

@@ -44,6 +44,10 @@ pub fn new() -> Store {
 
 impl Store {
     pub fn add(&self, entry: Entry) -> Result<(), Error> {
+        if entry.command.is_empty() {
+            return Ok(());
+        }
+
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
@@ -117,7 +121,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_nth_entries(&self, count: usize) -> Result<Vec<Entry>, Error> {
+    pub fn get_nth_entries(&self, hostname: &str, count: usize) -> Result<Vec<Entry>, Error> {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
@@ -131,20 +135,21 @@ impl Store {
 
         let mut entries: Vec<_> = index_paths
             .into_iter()
-            .map(Self::read_metadata_file)
+            .map(Self::read_log_file)
             .collect::<Result<Vec<Vec<_>>, Error>>()?
             .into_iter()
             .flatten()
+            .filter(|entry| entry.hostname == hostname)
             .collect();
 
         entries.sort();
 
-        let entries = entries.into_iter().rev().take(count).collect();
+        let entries = entries.into_iter().rev().take(count).rev().collect();
 
         Ok(entries)
     }
 
-    fn read_metadata_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<Entry>, Error> {
+    fn read_log_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<Entry>, Error> {
         let file = std::fs::File::open(&file_path)
             .map_err(|err| Error::OpenLogFile(file_path.as_ref().to_path_buf(), err))?;
 

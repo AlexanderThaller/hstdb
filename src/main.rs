@@ -5,12 +5,22 @@ mod server;
 mod store;
 
 use anyhow::Result;
+use chrono::{
+    DateTime,
+    Utc,
+};
 use message::{
     CommandFinished,
     CommandStart,
     Message,
 };
-use std::io::Write;
+use prettytable::{
+    cell,
+    format,
+    row,
+    Table,
+};
+use std::path::PathBuf;
 use uuid::Uuid;
 
 fn main() -> Result<()> {
@@ -50,16 +60,61 @@ fn main() -> Result<()> {
         }
 
         _ => {
-            let stdout = std::io::stdout();
-            let mut handle = stdout.lock();
+            let hostname = hostname::get()?.to_string_lossy().to_string();
 
-            store::new()
-                .get_nth_entries(25)?
-                .into_iter()
-                .map(|entry| handle.write_all(format!("{:?}\n", entry).as_bytes()))
-                .collect::<Result<_, _>>()?;
+            let entries = store::new().get_nth_entries(&hostname, 25)?;
+
+            let mut table = Table::new();
+            table.set_format(*format::consts::FORMAT_CLEAN);
+            table.set_titles(row![b->"time", b->"session", b->"pwd", b->"command"]);
+
+            for entry in entries.into_iter() {
+                table.add_row(row![
+                    format_timestamp(entry.time_finished),
+                    format_uuid(entry.session_id),
+                    format_pwd(entry.pwd),
+                    format!("{}", entry.command),
+                ]);
+            }
+
+            table.printstd();
 
             Ok(())
         }
+    }
+}
+
+fn format_timestamp(timestamp: DateTime<Utc>) -> String {
+    let today = Utc::now().date();
+
+    if timestamp.date() == today {
+        timestamp.format("%H:%M").to_string()
+    } else {
+        timestamp.date().format("%m/%d").to_string()
+    }
+}
+
+fn format_uuid(uuid: Uuid) -> String {
+    let chars = uuid.to_string().chars().collect::<Vec<_>>();
+
+    vec![chars[0], chars[1], chars[3], chars[4]]
+        .into_iter()
+        .collect()
+}
+
+fn format_pwd(pwd: PathBuf) -> String {
+    let home = std::env::var("HOME").unwrap();
+
+    if pwd.starts_with(home) {
+        let mut without_home = PathBuf::from("~");
+
+        let pwd_components = pwd.components().into_iter();
+        let pwd_components = pwd_components.skip(3);
+
+        pwd_components.for_each(|component| without_home.push(component));
+
+        without_home.to_string_lossy().to_string()
+    } else {
+        pwd.to_string_lossy().to_string()
     }
 }
