@@ -9,16 +9,15 @@ use chrono::{
     DateTime,
     Utc,
 };
+use comfy_table::{
+    Attribute,
+    Cell,
+    Table,
+};
 use message::{
     CommandFinished,
     CommandStart,
     Message,
-};
-use prettytable::{
-    cell,
-    format,
-    row,
-    Table,
 };
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -65,19 +64,27 @@ fn main() -> Result<()> {
             let entries = store::new().get_nth_entries(&hostname, 25)?;
 
             let mut table = Table::new();
-            table.set_format(*format::consts::FORMAT_CLEAN);
-            table.set_titles(row![b->"time", b->"session", b->"pwd", b->"command"]);
+            table.load_preset("                   ");
+            table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+            table.set_header(vec![
+                Cell::new("tmn").add_attribute(Attribute::Bold),
+                Cell::new("ses").add_attribute(Attribute::Bold),
+                Cell::new("res").add_attribute(Attribute::Bold),
+                Cell::new("pwd").add_attribute(Attribute::Bold),
+                Cell::new("cmd").add_attribute(Attribute::Bold),
+            ]);
 
             for entry in entries.into_iter() {
-                table.add_row(row![
+                table.add_row(vec![
                     format_timestamp(entry.time_finished),
                     format_uuid(entry.session_id),
+                    format!("{}", entry.result),
                     format_pwd(entry.pwd),
-                    format!("{}", entry.command),
+                    entry.command,
                 ]);
             }
 
-            table.printstd();
+            println!("{}", table);
 
             Ok(())
         }
