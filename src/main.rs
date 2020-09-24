@@ -52,8 +52,32 @@ fn main() -> Result<()> {
             Ok(())
         }
 
+        "running" => {
+            client::new().send(Message::Running)?;
+
+            Ok(())
+        }
+
         "server" => {
-            server::new().start()?;
+            let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs")?;
+
+            let server = match xdg_dirs.find_cache_file("server.json") {
+                None => server::new(),
+                Some(path) => {
+                    let file = std::fs::File::open(path).unwrap();
+                    let reader = std::io::BufReader::new(file);
+
+                    serde_json::from_reader(reader).unwrap()
+                }
+            };
+
+            let server = server.start()?;
+
+            let path = xdg_dirs.place_cache_file("server.json").unwrap();
+            let file = std::fs::File::create(path).unwrap();
+            let writer = std::io::BufWriter::new(file);
+
+            serde_json::to_writer(writer, &server).unwrap();
 
             Ok(())
         }

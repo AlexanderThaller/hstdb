@@ -7,6 +7,10 @@ use crate::{
     },
     store,
 };
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use std::{
     collections::HashMap,
     os::unix::net::UnixDatagram,
@@ -24,19 +28,26 @@ pub enum Error {
     #[error("command for session not started yet")]
     SessionCommandNotStarted,
 
-    #[error("server is stopping")]
-    Stop,
-
     #[error("can not add to storeo: {0}")]
     AddStore(crate::store::Error),
 }
 
-impl Error {
+#[derive(Debug)]
+enum RunState {
+    Stop,
+    Continue,
+}
+
+impl RunState {
     fn is_stop(&self) -> bool {
-        matches!(self, Self::Stop)
+        match self {
+            RunState::Stop => true,
+            RunState::Continue => false,
+        }
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Server {
     entries: HashMap<Uuid, CommandStart>,
 }
@@ -48,7 +59,7 @@ pub fn new() -> Server {
 }
 
 impl Server {
-    pub fn start(mut self) -> Result<(), Error> {
+    pub fn start(mut self) -> Result<Self, Error> {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let socket_path = xdg_dirs.place_runtime_file("socket").unwrap();
 
@@ -57,28 +68,29 @@ impl Server {
         loop {
             match Self::receive(&socket) {
                 Err(err) => eprintln!("{}", err),
-                Ok(message) => {
-                    if let Err(err) = self.process(message) {
-                        if err.is_stop() {
+                Ok(message) => match self.process(message) {
+                    Ok(state) => {
+                        if state.is_stop() {
                             break;
                         }
-
-                        eprintln!("error encountered: {}", err)
                     }
-                }
+
+                    Err(err) => eprintln!("error encountered: {}", err),
+                },
             }
         }
 
         std::fs::remove_file(&socket_path).unwrap();
 
-        Ok(())
+        Ok(self)
     }
 
-    fn process(&mut self, message: Message) -> Result<(), Error> {
+    fn process(&mut self, message: Message) -> Result<RunState, Error> {
         match message {
-            Message::Stop => Err(Error::Stop),
+            Message::Stop => Ok(RunState::Stop),
             Message::CommandStart(data) => self.command_start(data),
             Message::CommandFinished(data) => self.command_finished(data),
+            Message::Running => self.command_running(),
         }
     }
 
@@ -91,17 +103,17 @@ impl Server {
         Ok(message)
     }
 
-    fn command_start(&mut self, start: CommandStart) -> Result<(), Error> {
+    fn command_start(&mut self, start: CommandStart) -> Result<RunState, Error> {
         if self.entries.contains_key(&start.session_id) {
             return Err(Error::SessionCommandAlreadyStarted);
         }
 
         self.entries.insert(start.session_id, start);
 
-        Ok(())
+        Ok(RunState::Continue)
     }
 
-    fn command_finished(&mut self, finish: CommandFinished) -> Result<(), Error> {
+    fn command_finished(&mut self, finish: CommandFinished) -> Result<RunState, Error> {
         if !self.entries.contains_key(&finish.session_id) {
             return Err(Error::SessionCommandNotStarted);
         }
@@ -115,6 +127,18 @@ impl Server {
 
         store::new().add(entry).map_err(Error::AddStore)?;
 
-        Ok(())
+        Ok(RunState::Continue)
+    }
+
+    fn command_running(&self) -> Result<RunState, Error> {
+        self.entries.iter().for_each(|(session_id, entry)| {
+            println!(
+                "session_id={session_id}, command={command}",
+                session_id = session_id,
+                command = entry.command
+            )
+        });
+
+        Ok(RunState::Continue)
     }
 }
