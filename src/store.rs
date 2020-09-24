@@ -51,28 +51,10 @@ impl Store {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
-        let uuid = entry.session_id.to_string();
-        let mut uuid = uuid.chars();
-
-        let mut uuid_first_part = String::new();
-        uuid_first_part.push(uuid.next().unwrap());
-        uuid_first_part.push(uuid.next().unwrap());
-
-        let mut uuid_second_part = String::new();
-        uuid_second_part.push(uuid.next().unwrap());
-        uuid_second_part.push(uuid.next().unwrap());
-
         let hostname = &entry.hostname;
 
-        let folder_path = datadir_path
-            .as_path()
-            .join(hostname)
-            .join(&uuid_first_part)
-            .join(&uuid_second_part);
-
-        let file_path = folder_path
-            .join(entry.session_id.to_string())
-            .with_extension("csv");
+        let folder_path = datadir_path.as_path();
+        let file_path = folder_path.join(hostname).with_extension("csv");
 
         fs::create_dir_all(&folder_path)
             .map_err(|err| Error::CreateLogFolder(folder_path.to_path_buf(), err))?;
@@ -125,7 +107,7 @@ impl Store {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
-        let glob_string = datadir_path.join("*").join("*").join("*").join("*.csv");
+        let glob_string = datadir_path.join("*.csv");
 
         let glob = glob::glob(&glob_string.to_string_lossy()).map_err(Error::InvalidGlob)?;
 
