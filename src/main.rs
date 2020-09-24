@@ -7,7 +7,6 @@ mod store;
 use anyhow::Result;
 use chrono::{
     DateTime,
-    Datelike,
     Utc,
 };
 use comfy_table::{
@@ -233,7 +232,7 @@ fn format_timestamp(timestamp: DateTime<Utc>) -> String {
 fn format_uuid(uuid: Uuid) -> String {
     let chars = uuid.to_string().chars().collect::<Vec<_>>();
 
-    vec![chars[0], chars[1], chars[3], chars[4]]
+    vec![chars[0], chars[1], chars[2], chars[3]]
         .into_iter()
         .collect()
 }
