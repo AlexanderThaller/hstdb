@@ -80,7 +80,7 @@ fn main() -> Result<()> {
                     format_uuid(entry.session_id),
                     format!("{}", entry.result),
                     format_pwd(entry.pwd),
-                    entry.command,
+                    entry.command.trim().to_string(),
                 ]);
             }
 
