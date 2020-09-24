@@ -43,17 +43,10 @@ pub fn new() -> Store {
 }
 
 impl Store {
-    pub fn add(&self, entry: Entry) -> Result<(), Error> {
-        if entry.command.is_empty() {
-            return Ok(());
-        }
-
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
-        let datadir_path = xdg_dirs.get_data_home();
-
+    pub fn add_entry(&self, entry: &Entry, datadir_path: impl AsRef<Path>) -> Result<(), Error> {
         let hostname = &entry.hostname;
 
-        let folder_path = datadir_path.as_path();
+        let folder_path = datadir_path.as_ref();
         let file_path = folder_path.join(hostname).with_extension("csv");
 
         fs::create_dir_all(&folder_path)
@@ -76,12 +69,24 @@ impl Store {
 
         writer.serialize(&entry).map_err(Error::SerializeEntry)?;
 
-        self.commit(hostname)?;
+        Ok(())
+    }
+
+    pub fn add(&self, entry: Entry) -> Result<(), Error> {
+        if entry.command.is_empty() {
+            return Ok(());
+        }
+
+        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
+        let datadir_path = xdg_dirs.get_data_home();
+
+        self.add_entry(&entry, datadir_path)?;
+        self.commit(format!("add entry from {:?}", &entry.hostname))?;
 
         Ok(())
     }
 
-    fn commit(&self, hostname: &str) -> Result<(), Error> {
+    pub fn commit(&self, message: impl AsRef<str>) -> Result<(), Error> {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
@@ -95,7 +100,7 @@ impl Store {
         Command::new("git")
             .arg("commit")
             .arg("-m")
-            .arg(format!("added changes from {:?}", hostname))
+            .arg(message.as_ref())
             .current_dir(&datadir_path)
             .output()
             .map_err(Error::GitCommit)?;
