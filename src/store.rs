@@ -108,26 +108,34 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_nth_entries(&self, hostname: &str, count: usize) -> Result<Vec<Entry>, Error> {
+    pub fn get_nth_entries(
+        &self,
+        hostname: Option<&str>,
+        count: usize,
+    ) -> Result<Vec<Entry>, Error> {
         let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
         let datadir_path = xdg_dirs.get_data_home();
 
-        let glob_string = datadir_path.join("*.csv");
+        let mut entries: Vec<_> = if let Some(hostname) = hostname {
+            let index_path = datadir_path.join(format!("{}.csv", hostname));
+            Self::read_log_file(index_path)?
+        } else {
+            let glob_string = datadir_path.join("*.csv");
 
-        let glob = glob::glob(&glob_string.to_string_lossy()).map_err(Error::InvalidGlob)?;
+            let glob = glob::glob(&glob_string.to_string_lossy()).map_err(Error::InvalidGlob)?;
 
-        let index_paths = glob
-            .collect::<Result<Vec<PathBuf>, glob::GlobError>>()
-            .map_err(Error::GlobIteration)?;
+            let index_paths = glob
+                .collect::<Result<Vec<PathBuf>, glob::GlobError>>()
+                .map_err(Error::GlobIteration)?;
 
-        let mut entries: Vec<_> = index_paths
-            .into_iter()
-            .map(Self::read_log_file)
-            .collect::<Result<Vec<Vec<_>>, Error>>()?
-            .into_iter()
-            .flatten()
-            .filter(|entry| entry.hostname == hostname)
-            .collect();
+            index_paths
+                .into_iter()
+                .map(Self::read_log_file)
+                .collect::<Result<Vec<Vec<_>>, Error>>()?
+                .into_iter()
+                .flatten()
+                .collect()
+        };
 
         entries.sort();
 

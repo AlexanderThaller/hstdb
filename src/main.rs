@@ -188,7 +188,7 @@ fn main() -> Result<()> {
         _ => {
             let hostname = hostname::get()?.to_string_lossy().to_string();
 
-            let entries = store::new().get_nth_entries(&hostname, 25)?;
+            let entries = store::new().get_nth_entries(Some(&hostname), 25)?;
 
             let mut table = Table::new();
             table.load_preset("                   ");
