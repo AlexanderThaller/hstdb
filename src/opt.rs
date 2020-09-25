@@ -175,6 +175,10 @@ struct DefaultArgs {
     /// Print returncode of command
     #[structopt(long)]
     status: bool,
+
+    /// Show how long the command ran
+    #[structopt(long)]
+    duration: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -342,6 +346,10 @@ impl Opt {
             header.push(Cell::new("host").add_attribute(Attribute::Bold))
         };
 
+        if args.duration {
+            header.push(Cell::new("duration").add_attribute(Attribute::Bold))
+        };
+
         if args.status {
             header.push(Cell::new("res").add_attribute(Attribute::Bold))
         };
@@ -357,6 +365,10 @@ impl Opt {
 
             if args.host {
                 row.push(entry.hostname)
+            }
+
+            if args.duration {
+                row.push(format_duration(entry.time_start, entry.time_finished))
             }
 
             if args.status {
@@ -564,4 +576,9 @@ fn format_pwd(pwd: PathBuf) -> Result<String, Error> {
     } else {
         Ok(pwd.to_string_lossy().to_string())
     }
+}
+
+fn format_duration(time_start: DateTime<Utc>, time_finished: DateTime<Utc>) -> String {
+    let duration = time_finished - time_start;
+    duration.to_string()
 }
