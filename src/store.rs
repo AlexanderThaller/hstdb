@@ -107,7 +107,7 @@ impl Store {
 
     pub fn get_entries(
         &self,
-        hostname: Option<&str>,
+        hostname: Option<String>,
         count: usize,
         command_filter: Option<String>,
         dir_filter: Option<PathBuf>,

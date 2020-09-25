@@ -155,6 +155,18 @@ struct DefaultArgs {
     /// Only print entries that have been executed in the given directory
     #[structopt(short, long, conflicts_with = "in_current")]
     folder: Option<PathBuf>,
+
+    /// Print host column
+    #[structopt(long)]
+    host: bool,
+
+    /// Filter by given hostname
+    #[structopt(long, conflicts_with = "all_hosts")]
+    hostname: Option<String>,
+
+    /// Print all hosts
+    #[structopt(long, conflicts_with = "hostname")]
+    all_hosts: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -287,19 +299,25 @@ impl Opt {
     }
 
     fn run_default(args: DefaultArgs) -> Result<(), Error> {
-        let hostname = hostname::get()
-            .map_err(Error::GetHostname)?
-            .to_string_lossy()
-            .to_string();
-
         let dir_filter = if args.in_current {
             Some(std::env::current_dir().map_err(Error::GetCurrentDir)?)
         } else {
             args.folder
         };
 
+        let hostname = hostname::get()
+            .map_err(Error::GetHostname)?
+            .to_string_lossy()
+            .to_string();
+
+        let hostname_filter = if args.all_hosts {
+            None
+        } else {
+            Some(args.hostname.unwrap_or(hostname))
+        };
+
         let entries = store::new(args.data_dir.data_dir).get_entries(
-            Some(&hostname),
+            hostname_filter,
             args.entries_count,
             args.command,
             dir_filter,
@@ -308,22 +326,47 @@ impl Opt {
         let mut table = Table::new();
         table.load_preset("                   ");
         table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
-        table.set_header(vec![
-            Cell::new("tmn").add_attribute(Attribute::Bold),
-            Cell::new("ses").add_attribute(Attribute::Bold),
-            Cell::new("res").add_attribute(Attribute::Bold),
-            Cell::new("pwd").add_attribute(Attribute::Bold),
-            Cell::new("cmd").add_attribute(Attribute::Bold),
-        ]);
 
-        for entry in entries.into_iter() {
-            table.add_row(vec![
-                format_timestamp(entry.time_finished),
-                format_uuid(entry.session_id),
-                format!("{}", entry.result),
-                format_pwd(entry.pwd)?,
-                entry.command.trim().to_string(),
+        if args.host {
+            table.set_header(vec![
+                Cell::new("tmn").add_attribute(Attribute::Bold),
+                Cell::new("hos").add_attribute(Attribute::Bold),
+                Cell::new("ses").add_attribute(Attribute::Bold),
+                Cell::new("res").add_attribute(Attribute::Bold),
+                Cell::new("pwd").add_attribute(Attribute::Bold),
+                Cell::new("cmd").add_attribute(Attribute::Bold),
             ]);
+        } else {
+            table.set_header(vec![
+                Cell::new("tmn").add_attribute(Attribute::Bold),
+                Cell::new("ses").add_attribute(Attribute::Bold),
+                Cell::new("res").add_attribute(Attribute::Bold),
+                Cell::new("pwd").add_attribute(Attribute::Bold),
+                Cell::new("cmd").add_attribute(Attribute::Bold),
+            ]);
+        }
+
+        if args.host {
+            for entry in entries.into_iter() {
+                table.add_row(vec![
+                    format_timestamp(entry.time_finished),
+                    entry.hostname,
+                    format_uuid(entry.session_id),
+                    format!("{}", entry.result),
+                    format_pwd(entry.pwd)?,
+                    entry.command.trim().to_string(),
+                ]);
+            }
+        } else {
+            for entry in entries.into_iter() {
+                table.add_row(vec![
+                    format_timestamp(entry.time_finished),
+                    format_uuid(entry.session_id),
+                    format!("{}", entry.result),
+                    format_pwd(entry.pwd)?,
+                    entry.command.trim().to_string(),
+                ]);
+            }
         }
 
         println!("{}", table);
