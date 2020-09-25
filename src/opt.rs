@@ -156,6 +156,10 @@ struct DefaultArgs {
     #[structopt(short, long, conflicts_with = "in_current")]
     folder: Option<PathBuf>,
 
+    /// Exclude subdirectories when filtering by folder
+    #[structopt(long)]
+    no_subdirs: bool,
+
     /// Print host column
     #[structopt(long)]
     host: bool,
@@ -325,6 +329,7 @@ impl Opt {
             args.entries_count,
             args.command,
             dir_filter,
+            args.no_subdirs,
         )?;
 
         let mut table = Table::new();

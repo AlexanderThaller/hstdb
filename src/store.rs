@@ -111,6 +111,7 @@ impl Store {
         count: usize,
         command_filter: Option<String>,
         dir_filter: Option<PathBuf>,
+        no_subdirs: bool,
     ) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = hostname {
             let index_path = self.data_dir.join(format!("{}.csv", hostname));
@@ -147,7 +148,11 @@ impl Store {
             })
             .filter(|entry| {
                 if let Some(ref dir) = dir_filter {
-                    entry.pwd.as_path().starts_with(dir)
+                    if no_subdirs {
+                        entry.pwd == *dir
+                    } else {
+                        entry.pwd.as_path().starts_with(dir)
+                    }
                 } else {
                     true
                 }
