@@ -75,20 +75,60 @@ fn default_socket_path() -> String {
 
 #[derive(StructOpt, Debug)]
 struct ZSHAddHistory {
+    /// Path to folder in which to store the history files.
+    #[structopt(
+        short,
+        long,
+        default_value = into_str!(default_data_dir())
+    )]
+    data_dir: PathBuf,
+
+    /// Path to the socket for communication with the server
+    #[structopt(short, long, default_value = into_str!(default_socket_path()))]
+    socket_path: PathBuf,
+
     #[structopt(index = 1)]
     command: String,
 }
 
 #[derive(StructOpt, Debug)]
 struct Server {
+    /// Path to the cachefile used to store entries between restarts
     #[structopt(short, long, default_value = into_str!(default_cache_path()))]
     cache_path: PathBuf,
+
+    /// Path to folder in which to store the history files.
+    #[structopt(
+        short,
+        long,
+        default_value = into_str!(default_data_dir())
+    )]
+    data_dir: PathBuf,
+
+    /// Path to the socket for communication with the server
+    #[structopt(short, long, default_value = into_str!(default_socket_path()))]
+    socket_path: PathBuf,
 }
 
 #[derive(StructOpt, Debug)]
 struct Import {
+    /// Path to folder in which to store the history files.
+    #[structopt(
+        short,
+        long,
+        default_value = into_str!(default_data_dir())
+    )]
+    data_dir: PathBuf,
+
     #[structopt(short, long, default_value = into_str!(default_cache_path()))]
     import_file: PathBuf,
+}
+
+#[derive(StructOpt, Debug)]
+struct Socket {
+    /// Path to the socket for communication with the server
+    #[structopt(short, long, default_value = into_str!(default_socket_path()))]
+    socket_path: PathBuf,
 }
 
 #[derive(StructOpt, Debug)]
@@ -100,16 +140,16 @@ enum SubCommand {
     Server(Server),
 
     #[structopt(name = "stop")]
-    Stop,
+    Stop(Socket),
 
     #[structopt(name = "precmd")]
-    PreCmd,
+    PreCmd(Socket),
 
     #[structopt(name = "session_id")]
     SessionID,
 
     #[structopt(name = "running")]
-    Running,
+    Running(Socket),
 
     #[structopt(name = "import")]
     Import(Import),
@@ -122,16 +162,11 @@ enum SubCommand {
 pub struct Opt {
     /// Path to folder in which to store the history files.
     #[structopt(
-        global = true,
         short,
         long,
         default_value = into_str!(default_data_dir())
     )]
     data_dir: PathBuf,
-
-    /// Path to the socket for communication with the server
-    #[structopt(global = true, short, long, default_value = into_str!(default_socket_path()))]
-    socket_path: PathBuf,
 
     #[structopt(subcommand)]
     sub_command: Option<SubCommand>,
@@ -203,17 +238,13 @@ impl Opt {
 
         match sub_command {
             Some(sub_command) => match sub_command {
-                SubCommand::ZSHAddHistory(o) => {
-                    Self::run_zsh_add_history(o.command, self.socket_path)
-                }
-                SubCommand::Server(o) => {
-                    Self::run_server(o.cache_path, self.socket_path, self.data_dir)
-                }
-                SubCommand::Stop => Self::run_stop(self.socket_path),
-                SubCommand::PreCmd => Self::run_precmd(self.socket_path),
+                SubCommand::ZSHAddHistory(o) => Self::run_zsh_add_history(o.command, o.socket_path),
+                SubCommand::Server(o) => Self::run_server(o.cache_path, o.socket_path, o.data_dir),
+                SubCommand::Stop(o) => Self::run_stop(o.socket_path),
+                SubCommand::PreCmd(o) => Self::run_precmd(o.socket_path),
                 SubCommand::SessionID => Self::run_session_id(),
-                SubCommand::Running => Self::run_running(self.socket_path),
-                SubCommand::Import(o) => Self::run_import(o.import_file, self.data_dir),
+                SubCommand::Running(o) => Self::run_running(o.socket_path),
+                SubCommand::Import(o) => Self::run_import(o.import_file, o.data_dir),
             },
 
             None => Self::run_default(self.data_dir),
