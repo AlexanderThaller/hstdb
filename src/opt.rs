@@ -83,17 +83,11 @@ fn default_socket_path() -> String {
 
 #[derive(StructOpt, Debug)]
 struct ZSHAddHistory {
-    /// Path to folder in which to store the history files
-    #[structopt(
-        short,
-        long,
-        default_value = into_str!(default_data_dir())
-    )]
-    data_dir: PathBuf,
+    #[structopt(flatten)]
+    data_dir: DataDir,
 
-    /// Path to the socket for communication with the server
-    #[structopt(short, long, default_value = into_str!(default_socket_path()))]
-    socket_path: PathBuf,
+    #[structopt(flatten)]
+    socket_path: Socket,
 
     /// Command to add to history
     #[structopt(index = 1)]
@@ -106,28 +100,17 @@ struct Server {
     #[structopt(short, long, default_value = into_str!(default_cache_path()))]
     cache_path: PathBuf,
 
-    /// Path to folder in which to store the history files
-    #[structopt(
-        short,
-        long,
-        default_value = into_str!(default_data_dir())
-    )]
-    data_dir: PathBuf,
+    #[structopt(flatten)]
+    data_dir: DataDir,
 
-    /// Path to the socket for communication with the server
-    #[structopt(short, long, default_value = into_str!(default_socket_path()))]
-    socket_path: PathBuf,
+    #[structopt(flatten)]
+    socket_path: Socket,
 }
 
 #[derive(StructOpt, Debug)]
 struct Import {
-    /// Path to folder in which to store the history files
-    #[structopt(
-        short,
-        long,
-        default_value = into_str!(default_data_dir())
-    )]
-    data_dir: PathBuf,
+    #[structopt(flatten)]
+    data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
     #[structopt(short, long, default_value = into_str!(default_histdb_sqlite_path()))]
@@ -139,6 +122,27 @@ struct Socket {
     /// Path to the socket for communication with the server
     #[structopt(short, long, default_value = into_str!(default_socket_path()))]
     socket_path: PathBuf,
+}
+
+#[derive(StructOpt, Debug)]
+struct DataDir {
+    /// Path to folder in which to store the history files
+    #[structopt(
+        short,
+        long,
+        default_value = into_str!(default_data_dir())
+    )]
+    data_dir: PathBuf,
+}
+
+#[derive(StructOpt, Debug)]
+struct DefaultArgs {
+    #[structopt(flatten)]
+    data_dir: DataDir,
+
+    /// How many entries to print
+    #[structopt(short, long, default_value = "25")]
+    entries_count: usize,
 }
 
 #[derive(StructOpt, Debug)]
@@ -177,13 +181,8 @@ enum SubCommand {
     global_settings = &[ColoredHelp, VersionlessSubcommands, NextLineHelp, GlobalVersion]
 )]
 pub struct Opt {
-    /// Path to folder in which to store the history files
-    #[structopt(
-        short,
-        long,
-        default_value = into_str!(default_data_dir())
-    )]
-    data_dir: PathBuf,
+    #[structopt(flatten)]
+    default_args: DefaultArgs,
 
     #[structopt(subcommand)]
     sub_command: Option<SubCommand>,
@@ -255,26 +254,31 @@ impl Opt {
 
         match sub_command {
             Some(sub_command) => match sub_command {
-                SubCommand::ZSHAddHistory(o) => Self::run_zsh_add_history(o.command, o.socket_path),
-                SubCommand::Server(o) => Self::run_server(o.cache_path, o.socket_path, o.data_dir),
+                SubCommand::ZSHAddHistory(o) => {
+                    Self::run_zsh_add_history(o.command, o.socket_path.socket_path)
+                }
+                SubCommand::Server(o) => {
+                    Self::run_server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
+                }
                 SubCommand::Stop(o) => Self::run_stop(o.socket_path),
                 SubCommand::PreCmd(o) => Self::run_precmd(o.socket_path),
                 SubCommand::SessionID => Self::run_session_id(),
                 SubCommand::Running(o) => Self::run_running(o.socket_path),
-                SubCommand::Import(o) => Self::run_import(o.import_file, o.data_dir),
+                SubCommand::Import(o) => Self::run_import(o.import_file, o.data_dir.data_dir),
             },
 
-            None => Self::run_default(self.data_dir),
+            None => Self::run_default(self.default_args),
         }
     }
 
-    fn run_default(data_dir: PathBuf) -> Result<(), Error> {
+    fn run_default(args: DefaultArgs) -> Result<(), Error> {
         let hostname = hostname::get()
             .map_err(Error::GetHostname)?
             .to_string_lossy()
             .to_string();
 
-        let entries = store::new(data_dir).get_nth_entries(Some(&hostname), 25)?;
+        let entries = store::new(args.data_dir.data_dir)
+            .get_nth_entries(Some(&hostname), args.entries_count)?;
 
         let mut table = Table::new();
         table.load_preset("                   ");
