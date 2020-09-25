@@ -1,4 +1,5 @@
 use crate::entry::Entry;
+use regex::Regex;
 use std::{
     fs,
     path::{
@@ -123,6 +124,7 @@ impl Store {
         command_filter: Option<String>,
         dir_filter: Option<PathBuf>,
         no_subdirs: bool,
+        command_text: Option<Regex>,
     ) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = hostname {
             let index_path = self.data_dir.join(format!("{}.csv", hostname));
@@ -164,6 +166,13 @@ impl Store {
                     } else {
                         entry.pwd.as_path().starts_with(dir)
                     }
+                } else {
+                    true
+                }
+            })
+            .filter(|entry| {
+                if let Some(ref regex) = command_text {
+                    regex.is_match(&entry.command)
                 } else {
                     true
                 }

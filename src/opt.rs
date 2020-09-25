@@ -22,6 +22,7 @@ use comfy_table::{
 };
 use directories::ProjectDirs;
 use log::info;
+use regex::Regex;
 use rusqlite::params;
 use std::{
     convert::TryInto,
@@ -148,6 +149,10 @@ struct DefaultArgs {
     /// Only print entries beginning with the given command
     #[structopt(short, long)]
     command: Option<String>,
+
+    /// Only print entries beginning with the given command
+    #[structopt(short = "t", long = "text")]
+    command_text: Option<Regex>,
 
     /// Only print entries that have been executed in the current directory
     #[structopt(short, long = "in", conflicts_with = "folder")]
@@ -342,6 +347,7 @@ impl Opt {
             args.command,
             dir_filter,
             args.no_subdirs,
+            args.command_text,
         )?;
 
         let mut table = Table::new();

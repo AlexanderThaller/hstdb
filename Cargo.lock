@@ -322,6 +322,7 @@ dependencies = [
  "humantime 2.0.1",
  "log",
  "pretty_env_logger",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
