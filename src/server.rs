@@ -28,6 +28,30 @@ pub enum Error {
 
     #[error("can not add to storeo: {0}")]
     AddStore(crate::store::Error),
+
+    #[error("can not open cache file: {0}")]
+    OpenCacheFile(std::io::Error),
+
+    #[error("can not deserialize cache entries: {0}")]
+    DeserializeCacheEntries(serde_json::Error),
+
+    #[error("can not bind to socket: {0}")]
+    BindSocket(std::io::Error),
+
+    #[error("can not remove socket: {0}")]
+    RemoveSocket(std::io::Error),
+
+    #[error("can not create cache file: {0}")]
+    CreateCacheFile(std::io::Error),
+
+    #[error("can not serialize cache entries: {0}")]
+    SerializeCacheEntries(serde_json::Error),
+
+    #[error("can not receive message from socket: {0}")]
+    ReceiveFromSocket(std::io::Error),
+
+    #[error("can not deserialize message: {0}")]
+    DeserializeMessage(bincode::Error),
 }
 
 #[derive(Debug)]
@@ -65,10 +89,10 @@ pub fn new(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Error> {
 }
 
 fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Error> {
-    let file = std::fs::File::open(&cache_path).unwrap();
+    let file = std::fs::File::open(&cache_path).map_err(Error::OpenCacheFile)?;
     let reader = std::io::BufReader::new(file);
 
-    let entries = serde_json::from_reader(reader).unwrap();
+    let entries = serde_json::from_reader(reader).map_err(Error::DeserializeCacheEntries)?;
 
     let store = store::new(data_dir);
 
@@ -81,7 +105,7 @@ fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Erro
 
 impl Server {
     pub fn start(mut self, socket_path: PathBuf) -> Result<Self, Error> {
-        let socket = UnixDatagram::bind(&socket_path).unwrap();
+        let socket = UnixDatagram::bind(&socket_path).map_err(Error::BindSocket)?;
 
         loop {
             match Self::receive(&socket) {
@@ -98,12 +122,12 @@ impl Server {
             }
         }
 
-        std::fs::remove_file(&socket_path).unwrap();
+        std::fs::remove_file(&socket_path).map_err(Error::RemoveSocket)?;
 
-        let file = std::fs::File::create(&self.cache_path).unwrap();
+        let file = std::fs::File::create(&self.cache_path).map_err(Error::CreateCacheFile)?;
         let writer = std::io::BufWriter::new(file);
 
-        serde_json::to_writer(writer, &self.entries).unwrap();
+        serde_json::to_writer(writer, &self.entries).map_err(Error::SerializeCacheEntries)?;
 
         Ok(self)
     }
@@ -119,9 +143,12 @@ impl Server {
 
     fn receive(socket: &UnixDatagram) -> Result<Message, Error> {
         let mut buffer = [0u8; BUFFER_SIZE];
-        let (written, _) = socket.recv_from(&mut buffer).unwrap();
+        let (written, _) = socket
+            .recv_from(&mut buffer)
+            .map_err(Error::ReceiveFromSocket)?;
 
-        let message = bincode::deserialize(&buffer[0..written]).unwrap();
+        let message =
+            bincode::deserialize(&buffer[0..written]).map_err(Error::DeserializeMessage)?;
 
         Ok(message)
     }

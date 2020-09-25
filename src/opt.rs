@@ -164,6 +164,12 @@ pub enum Error {
 
     #[error("can not collect entries from sqlite query: {0}")]
     CollectEntries(rusqlite::Error),
+
+    #[error("can not convert exit status from sqlite: {0}")]
+    ConvertExitStatus(std::num::TryFromIntError),
+
+    #[error("can not get base directories")]
+    GetBaseDirectories,
 }
 
 impl From<client::Error> for Error {
@@ -237,7 +243,7 @@ impl Opt {
                 format_timestamp(entry.time_finished),
                 format_uuid(entry.session_id),
                 format!("{}", entry.result),
-                format_pwd(entry.pwd),
+                format_pwd(entry.pwd)?,
                 entry.command.trim().to_string(),
             ]);
         }
@@ -356,13 +362,24 @@ impl Opt {
             );
 
             let time_finished = chrono::DateTime::<Utc>::from_utc(
-                chrono::NaiveDateTime::from_timestamp(start_time + entry.duration.unwrap(), 0),
+                chrono::NaiveDateTime::from_timestamp(
+                    start_time
+                        + entry
+                            .duration
+                            .expect("save as we already checked if duration is some earlier"),
+                    0,
+                ),
                 Utc,
             );
 
             let hostname = entry.hostname;
             let pwd = PathBuf::from(entry.pwd);
-            let result = entry.exit_status.unwrap().try_into().unwrap();
+            let result = entry
+                .exit_status
+                .expect("save as we already checked if status is some earlier")
+                .try_into()
+                .map_err(Error::ConvertExitStatus)?;
+
             let user = String::new();
             let command = entry.command;
 
@@ -377,7 +394,7 @@ impl Opt {
                 command,
             };
 
-            store.add_entry(&entry).unwrap();
+            store.add_entry(&entry)?;
         }
 
         let hostname = hostname::get()
@@ -410,8 +427,9 @@ fn format_uuid(uuid: Uuid) -> String {
         .collect()
 }
 
-fn format_pwd(pwd: PathBuf) -> String {
-    let home = std::env::var("HOME").unwrap();
+fn format_pwd(pwd: PathBuf) -> Result<String, Error> {
+    let base_dirs = directories::BaseDirs::new().ok_or(Error::GetBaseDirectories)?;
+    let home = base_dirs.home_dir();
 
     if pwd.starts_with(home) {
         let mut without_home = PathBuf::from("~");
@@ -420,8 +438,8 @@ fn format_pwd(pwd: PathBuf) -> String {
 
         pwd_components.for_each(|component| without_home.push(component));
 
-        without_home.to_string_lossy().to_string()
+        Ok(without_home.to_string_lossy().to_string())
     } else {
-        pwd.to_string_lossy().to_string()
+        Ok(pwd.to_string_lossy().to_string())
     }
 }
