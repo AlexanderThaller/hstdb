@@ -8,6 +8,10 @@ use crate::{
     store,
     store::Store,
 };
+use log::{
+    info,
+    warn,
+};
 use std::{
     collections::HashMap,
     os::unix::net::UnixDatagram,
@@ -105,11 +109,12 @@ fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Erro
 
 impl Server {
     pub fn start(mut self, socket_path: PathBuf) -> Result<Self, Error> {
+        info!("starting server listening on path {:?}", socket_path);
         let socket = UnixDatagram::bind(&socket_path).map_err(Error::BindSocket)?;
 
         loop {
             match Self::receive(&socket) {
-                Err(err) => eprintln!("{}", err),
+                Err(err) => warn!("{}", err),
                 Ok(message) => match self.process(message) {
                     Ok(state) => {
                         if state.is_stop() {
@@ -117,7 +122,7 @@ impl Server {
                         }
                     }
 
-                    Err(err) => eprintln!("error encountered: {}", err),
+                    Err(err) => warn!("error encountered: {}", err),
                 },
             }
         }
@@ -182,7 +187,7 @@ impl Server {
 
     fn command_running(&self) -> Result<RunState, Error> {
         self.entries.iter().for_each(|(session_id, entry)| {
-            println!(
+            info!(
                 "session_id={session_id}, command={command}",
                 session_id = session_id,
                 command = entry.command

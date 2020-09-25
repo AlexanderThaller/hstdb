@@ -20,6 +20,7 @@ use comfy_table::{
     Table,
 };
 use directories::ProjectDirs;
+use log::info;
 use rusqlite::params;
 use std::{
     convert::TryInto,
@@ -336,7 +337,7 @@ impl Opt {
             .collect::<Result<std::collections::BTreeSet<_>, _>>()
             .map_err(Error::CollectEntries)?;
 
-        println!("importing {:?} entries", entries.len());
+        info!("importing {:?} entries", entries.len());
 
         let mut session_ids = std::collections::HashMap::new();
 
