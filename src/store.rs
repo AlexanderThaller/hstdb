@@ -147,7 +147,7 @@ impl Store {
             })
             .filter(|entry| {
                 if let Some(ref dir) = dir_filter {
-                    entry.pwd == *dir
+                    entry.pwd.as_path().starts_with(dir)
                 } else {
                     true
                 }
