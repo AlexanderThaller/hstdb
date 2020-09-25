@@ -346,8 +346,9 @@ impl Opt {
 
         let mut table = Table::new();
         table.load_preset("                   ");
-        if !args.no_format {
-            table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+        table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+        if args.no_format {
+            table.force_no_tty();
         }
 
         let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
