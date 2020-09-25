@@ -62,14 +62,7 @@ pub struct CommandStart {
 }
 
 impl CommandStart {
-    pub fn from_env() -> Result<Self, Error> {
-        let command = env::args()
-            .into_iter()
-            .nth(2)
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-
+    pub fn from_env(command: String) -> Result<Self, Error> {
         let pwd = env::current_dir().map_err(Error::GetCurrentDir)?;
 
         let time_stamp = Utc::now();

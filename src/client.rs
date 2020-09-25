@@ -1,24 +1,26 @@
 use crate::message::Message;
-use std::os::unix::net::UnixDatagram;
+use std::{
+    os::unix::net::UnixDatagram,
+    path::PathBuf,
+};
 use thiserror::Error;
 
 #[derive(Debug)]
-pub struct Client {}
+pub struct Client {
+    socket_path: PathBuf,
+}
 
 #[derive(Error, Debug)]
 pub enum Error {}
 
-pub fn new() -> Client {
-    Client {}
+pub fn new(socket_path: PathBuf) -> Client {
+    Client { socket_path }
 }
 
 impl Client {
     pub fn send(&self, message: Message) -> Result<(), Error> {
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
-        let socket_path = xdg_dirs.find_runtime_file("socket").unwrap();
-
         let socket = UnixDatagram::unbound().unwrap();
-        socket.connect(socket_path).unwrap();
+        socket.connect(&self.socket_path).unwrap();
         socket.send(&bincode::serialize(&message).unwrap()).unwrap();
 
         Ok(())

@@ -6,14 +6,12 @@ use crate::{
         Message,
     },
     store,
-};
-use serde::{
-    Deserialize,
-    Serialize,
+    store::Store,
 };
 use std::{
     collections::HashMap,
     os::unix::net::UnixDatagram,
+    path::PathBuf,
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -47,22 +45,42 @@ impl RunState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Server {
     entries: HashMap<Uuid, CommandStart>,
+    store: Store,
+    cache_path: PathBuf,
 }
 
-pub fn new() -> Server {
-    Server {
-        entries: HashMap::new(),
+pub fn new(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Error> {
+    if cache_path.exists() {
+        from_cachefile(cache_path, data_dir)
+    } else {
+        Ok(Server {
+            entries: HashMap::new(),
+            store: store::new(data_dir),
+            cache_path,
+        })
     }
 }
 
-impl Server {
-    pub fn start(mut self) -> Result<Self, Error> {
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
-        let socket_path = xdg_dirs.place_runtime_file("socket").unwrap();
+fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Error> {
+    let file = std::fs::File::open(&cache_path).unwrap();
+    let reader = std::io::BufReader::new(file);
 
+    let entries = serde_json::from_reader(reader).unwrap();
+
+    let store = store::new(data_dir);
+
+    Ok(Server {
+        entries,
+        store,
+        cache_path,
+    })
+}
+
+impl Server {
+    pub fn start(mut self, socket_path: PathBuf) -> Result<Self, Error> {
         let socket = UnixDatagram::bind(&socket_path).unwrap();
 
         loop {
@@ -81,6 +99,11 @@ impl Server {
         }
 
         std::fs::remove_file(&socket_path).unwrap();
+
+        let file = std::fs::File::create(&self.cache_path).unwrap();
+        let writer = std::io::BufWriter::new(file);
+
+        serde_json::to_writer(writer, &self.entries).unwrap();
 
         Ok(self)
     }
@@ -125,7 +148,7 @@ impl Server {
 
         let entry = Entry::from_messages(start, finish);
 
-        store::new().add(entry).map_err(Error::AddStore)?;
+        self.store.add(entry).map_err(Error::AddStore)?;
 
         Ok(RunState::Continue)
     }

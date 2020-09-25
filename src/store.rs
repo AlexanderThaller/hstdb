@@ -36,17 +36,20 @@ pub enum Error {
     ReadLogFile(PathBuf, csv::Error),
 }
 
-pub struct Store {}
+#[derive(Debug)]
+pub struct Store {
+    data_dir: PathBuf,
+}
 
-pub fn new() -> Store {
-    Store {}
+pub fn new(data_dir: PathBuf) -> Store {
+    Store { data_dir }
 }
 
 impl Store {
-    pub fn add_entry(&self, entry: &Entry, datadir_path: impl AsRef<Path>) -> Result<(), Error> {
+    pub fn add_entry(&self, entry: &Entry) -> Result<(), Error> {
         let hostname = &entry.hostname;
 
-        let folder_path = datadir_path.as_ref();
+        let folder_path = self.data_dir.as_path();
         let file_path = folder_path.join(hostname).with_extension("csv");
 
         fs::create_dir_all(&folder_path)
@@ -77,23 +80,17 @@ impl Store {
             return Ok(());
         }
 
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
-        let datadir_path = xdg_dirs.get_data_home();
-
-        self.add_entry(&entry, datadir_path)?;
+        self.add_entry(&entry)?;
         self.commit(format!("add entry from {:?}", &entry.hostname))?;
 
         Ok(())
     }
 
     pub fn commit(&self, message: impl AsRef<str>) -> Result<(), Error> {
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
-        let datadir_path = xdg_dirs.get_data_home();
-
         Command::new("git")
             .arg("add")
             .arg(":/")
-            .current_dir(&datadir_path)
+            .current_dir(&self.data_dir)
             .output()
             .map_err(Error::GitAdd)?;
 
@@ -101,7 +98,7 @@ impl Store {
             .arg("commit")
             .arg("-m")
             .arg(message.as_ref())
-            .current_dir(&datadir_path)
+            .current_dir(&self.data_dir)
             .output()
             .map_err(Error::GitCommit)?;
 
@@ -113,14 +110,11 @@ impl Store {
         hostname: Option<&str>,
         count: usize,
     ) -> Result<Vec<Entry>, Error> {
-        let xdg_dirs = xdg::BaseDirectories::with_prefix("histdb-rs").unwrap();
-        let datadir_path = xdg_dirs.get_data_home();
-
         let mut entries: Vec<_> = if let Some(hostname) = hostname {
-            let index_path = datadir_path.join(format!("{}.csv", hostname));
+            let index_path = self.data_dir.join(format!("{}.csv", hostname));
             Self::read_log_file(index_path)?
         } else {
-            let glob_string = datadir_path.join("*.csv");
+            let glob_string = self.data_dir.join("*.csv");
 
             let glob = glob::glob(&glob_string.to_string_lossy()).map_err(Error::InvalidGlob)?;
 
