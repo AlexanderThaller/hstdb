@@ -1,3 +1,5 @@
+cargo-features = ["strip"]
+
 [package]
 name = "histdb-rs"
 version = "0.1.0"
@@ -23,3 +25,10 @@ serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
 thiserror = "1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
+
+[profile.release]
+lto = true
+strip = "symbols"
+opt-level = 'z'  # Optimize for size.
+codegen-units = 1
+panic = 'abort'
