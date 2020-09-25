@@ -64,6 +64,8 @@ fn default_socket_path() -> String {
     let project_dir = project_dir();
     let socket_path = project_dir
         .runtime_dir()
+        // TODO: Sometimes getting the runtime dir can fail maybe find a good fallback path and use
+        // that instead. Or find a good way to propagate the error to structopt.
         .expect("getting the runtime dir should never fail")
         .join("server_socket");
 
