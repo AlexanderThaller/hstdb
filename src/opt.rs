@@ -180,6 +180,10 @@ struct DefaultArgs {
     /// Show how long the command ran
     #[structopt(long)]
     duration: bool,
+
+    /// Disable fancy formatting
+    #[structopt(long)]
+    no_format: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -342,7 +346,9 @@ impl Opt {
 
         let mut table = Table::new();
         table.load_preset("                   ");
-        table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+        if !args.no_format {
+            table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+        }
 
         let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
 
@@ -381,7 +387,7 @@ impl Opt {
 
             row.push(format_uuid(entry.session_id));
             row.push(format_pwd(entry.pwd)?);
-            row.push(entry.command.trim().to_string());
+            row.push(format_command(entry.command, args.no_format));
 
             table.add_row(row);
         }
@@ -595,4 +601,12 @@ fn format_duration(
     Ok(humantime::format_duration(duration_std)
         .to_string()
         .replace(" ", ""))
+}
+
+fn format_command(command: String, no_format: bool) -> String {
+    if no_format {
+        command.trim().replace("\n", "\\n")
+    } else {
+        command.trim().to_string()
+    }
 }
