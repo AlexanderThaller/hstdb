@@ -143,6 +143,10 @@ struct DefaultArgs {
     /// How many entries to print
     #[structopt(short, long, default_value = "25")]
     entries_count: usize,
+
+    /// Only print entries beginning with the given command
+    #[structopt(short, long)]
+    command: Option<String>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -277,8 +281,11 @@ impl Opt {
             .to_string_lossy()
             .to_string();
 
-        let entries = store::new(args.data_dir.data_dir)
-            .get_nth_entries(Some(&hostname), args.entries_count)?;
+        let entries = store::new(args.data_dir.data_dir).get_entries(
+            Some(&hostname),
+            args.entries_count,
+            args.command,
+        )?;
 
         let mut table = Table::new();
         table.load_preset("                   ");

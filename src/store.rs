@@ -105,13 +105,15 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_nth_entries(
+    pub fn get_entries(
         &self,
         hostname: Option<&str>,
         count: usize,
+        command_filter: Option<String>,
     ) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = hostname {
             let index_path = self.data_dir.join(format!("{}.csv", hostname));
+
             Self::read_log_file(index_path)?
         } else {
             let glob_string = self.data_dir.join("*.csv");
@@ -133,7 +135,21 @@ impl Store {
 
         entries.sort();
 
-        let entries = entries.into_iter().rev().take(count).rev().collect();
+        let entries = entries
+            .into_iter()
+            .filter(|entry| {
+                if let Some(ref command) = command_filter {
+                    entry.command.starts_with(command)
+                } else {
+                    true
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .take(count)
+            .rev()
+            .collect();
 
         Ok(entries)
     }
