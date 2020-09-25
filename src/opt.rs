@@ -12,6 +12,7 @@ use crate::{
 use anyhow::Result;
 use chrono::{
     DateTime,
+    Local,
     Utc,
 };
 use comfy_table::{
@@ -546,13 +547,14 @@ impl Opt {
 }
 
 fn format_timestamp(timestamp: DateTime<Utc>) -> String {
-    let today = Utc::now().date();
-    let date = timestamp.date();
+    let today = Local::now().date();
+    let local = timestamp.with_timezone(&chrono::offset::Local);
+    let date = local.date().with_timezone(&chrono::offset::Local);
 
     if date == today {
-        timestamp.format("%H:%M").to_string()
+        local.format("%H:%M").to_string()
     } else {
-        timestamp.date().format("%Y-%m-%d").to_string()
+        local.date().format("%Y-%m-%d").to_string()
     }
 }
 
