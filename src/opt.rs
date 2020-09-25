@@ -147,6 +147,14 @@ struct DefaultArgs {
     /// Only print entries beginning with the given command
     #[structopt(short, long)]
     command: Option<String>,
+
+    /// Only print entries that have been executed in the current directory
+    #[structopt(short, long = "in", conflicts_with = "folder")]
+    in_current: bool,
+
+    /// Only print entries that have been executed in the given directory
+    #[structopt(short, long, conflicts_with = "in_current")]
+    folder: Option<PathBuf>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -226,6 +234,9 @@ pub enum Error {
 
     #[error("can not get base directories")]
     GetBaseDirectories,
+
+    #[error("can not get current directory: {0}")]
+    GetCurrentDir(std::io::Error),
 }
 
 impl From<client::Error> for Error {
@@ -281,10 +292,17 @@ impl Opt {
             .to_string_lossy()
             .to_string();
 
+        let dir_filter = if args.in_current {
+            Some(std::env::current_dir().map_err(Error::GetCurrentDir)?)
+        } else {
+            args.folder
+        };
+
         let entries = store::new(args.data_dir.data_dir).get_entries(
             Some(&hostname),
             args.entries_count,
             args.command,
+            dir_filter,
         )?;
 
         let mut table = Table::new();

@@ -110,6 +110,7 @@ impl Store {
         hostname: Option<&str>,
         count: usize,
         command_filter: Option<String>,
+        dir_filter: Option<PathBuf>,
     ) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = hostname {
             let index_path = self.data_dir.join(format!("{}.csv", hostname));
@@ -140,6 +141,13 @@ impl Store {
             .filter(|entry| {
                 if let Some(ref command) = command_filter {
                     entry.command.starts_with(command)
+                } else {
+                    true
+                }
+            })
+            .filter(|entry| {
+                if let Some(ref dir) = dir_filter {
+                    entry.pwd == *dir
                 } else {
                     true
                 }
