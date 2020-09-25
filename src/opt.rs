@@ -580,5 +580,10 @@ fn format_pwd(pwd: PathBuf) -> Result<String, Error> {
 
 fn format_duration(time_start: DateTime<Utc>, time_finished: DateTime<Utc>) -> String {
     let duration = time_finished - time_start;
-    duration.to_string()
+    let duration_ms = duration.num_milliseconds();
+    let duration_std = std::time::Duration::from_millis(duration_ms.try_into().unwrap());
+
+    humantime::format_duration(duration_std)
+        .to_string()
+        .replace(" ", "")
 }

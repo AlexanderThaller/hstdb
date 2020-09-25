@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
 thiserror = "1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
+humantime = "2.0.1"
 
 [profile.release]
 codegen-units = 1
