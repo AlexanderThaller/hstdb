@@ -42,7 +42,8 @@ macro_rules! into_str {
 }
 
 fn project_dir() -> ProjectDirs {
-    ProjectDirs::from("com", "histdb-rs", "histdb-rs").unwrap()
+    ProjectDirs::from("com", "histdb-rs", "histdb-rs")
+        .expect("getting project dirs should never fail")
 }
 
 fn default_data_dir() -> String {
@@ -61,7 +62,10 @@ fn default_cache_path() -> String {
 
 fn default_socket_path() -> String {
     let project_dir = project_dir();
-    let socket_path = project_dir.runtime_dir().unwrap().join("server_socket");
+    let socket_path = project_dir
+        .runtime_dir()
+        .expect("getting the runtime dir should never fail")
+        .join("server_socket");
 
     socket_path.to_string_lossy().to_string()
 }
