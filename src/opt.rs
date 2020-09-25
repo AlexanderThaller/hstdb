@@ -167,6 +167,10 @@ struct DefaultArgs {
     /// Print all hosts
     #[structopt(long, conflicts_with = "hostname")]
     all_hosts: bool,
+
+    /// Print returncode of command
+    #[structopt(long)]
+    status: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -327,46 +331,38 @@ impl Opt {
         table.load_preset("                   ");
         table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
 
-        if args.host {
-            table.set_header(vec![
-                Cell::new("tmn").add_attribute(Attribute::Bold),
-                Cell::new("hos").add_attribute(Attribute::Bold),
-                Cell::new("ses").add_attribute(Attribute::Bold),
-                Cell::new("res").add_attribute(Attribute::Bold),
-                Cell::new("pwd").add_attribute(Attribute::Bold),
-                Cell::new("cmd").add_attribute(Attribute::Bold),
-            ]);
-        } else {
-            table.set_header(vec![
-                Cell::new("tmn").add_attribute(Attribute::Bold),
-                Cell::new("ses").add_attribute(Attribute::Bold),
-                Cell::new("res").add_attribute(Attribute::Bold),
-                Cell::new("pwd").add_attribute(Attribute::Bold),
-                Cell::new("cmd").add_attribute(Attribute::Bold),
-            ]);
-        }
+        let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
 
         if args.host {
-            for entry in entries.into_iter() {
-                table.add_row(vec![
-                    format_timestamp(entry.time_finished),
-                    entry.hostname,
-                    format_uuid(entry.session_id),
-                    format!("{}", entry.result),
-                    format_pwd(entry.pwd)?,
-                    entry.command.trim().to_string(),
-                ]);
+            header.push(Cell::new("host").add_attribute(Attribute::Bold))
+        };
+
+        if args.status {
+            header.push(Cell::new("res").add_attribute(Attribute::Bold))
+        };
+
+        header.push(Cell::new("ses").add_attribute(Attribute::Bold));
+        header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
+        header.push(Cell::new("cmd").add_attribute(Attribute::Bold));
+
+        table.set_header(header);
+
+        for entry in entries.into_iter() {
+            let mut row = vec![format_timestamp(entry.time_finished)];
+
+            if args.host {
+                row.push(entry.hostname)
             }
-        } else {
-            for entry in entries.into_iter() {
-                table.add_row(vec![
-                    format_timestamp(entry.time_finished),
-                    format_uuid(entry.session_id),
-                    format!("{}", entry.result),
-                    format_pwd(entry.pwd)?,
-                    entry.command.trim().to_string(),
-                ]);
+
+            if args.status {
+                row.push(format!("{}", entry.result))
             }
+
+            row.push(format_uuid(entry.session_id));
+            row.push(format_pwd(entry.pwd)?);
+            row.push(entry.command.trim().to_string());
+
+            table.add_row(row);
         }
 
         println!("{}", table);
