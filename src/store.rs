@@ -26,6 +26,9 @@ pub enum Error {
     #[error("can not git commit changes: {0}")]
     GitCommit(std::io::Error),
 
+    #[error("can not git init repository: {0}")]
+    GitInit(std::io::Error),
+
     #[error("glob is not valid: {0}")]
     InvalidGlob(glob::PatternError),
 
@@ -87,6 +90,14 @@ impl Store {
     }
 
     pub fn commit(&self, message: impl AsRef<str>) -> Result<(), Error> {
+        if !&self.data_dir.join(".git").exists() {
+            Command::new("git")
+                .arg("init")
+                .current_dir(&self.data_dir)
+                .output()
+                .map_err(Error::GitInit)?;
+        }
+
         Command::new("git")
             .arg("add")
             .arg(":/")
