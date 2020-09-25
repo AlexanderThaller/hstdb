@@ -27,8 +27,7 @@ thiserror = "1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [profile.release]
-lto = true
-strip = "symbols"
-opt-level = 'z'  # Optimize for size.
 codegen-units = 1
+lto = true
 panic = 'abort'
+strip = "symbols"
