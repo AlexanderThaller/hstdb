@@ -61,6 +61,14 @@ fn default_cache_path() -> String {
     cache_path.to_string_lossy().to_string()
 }
 
+fn default_histdb_sqlite_path() -> String {
+    let base_dirs = directories::BaseDirs::new().expect("getting basedirs should never fail");
+    let home = base_dirs.home_dir();
+    let file_path = home.join(".histdb").join("zsh-history.db");
+
+    file_path.to_string_lossy().to_string()
+}
+
 fn default_socket_path() -> String {
     let project_dir = project_dir();
     let socket_path = project_dir
@@ -75,7 +83,7 @@ fn default_socket_path() -> String {
 
 #[derive(StructOpt, Debug)]
 struct ZSHAddHistory {
-    /// Path to folder in which to store the history files.
+    /// Path to folder in which to store the history files
     #[structopt(
         short,
         long,
@@ -87,6 +95,7 @@ struct ZSHAddHistory {
     #[structopt(short, long, default_value = into_str!(default_socket_path()))]
     socket_path: PathBuf,
 
+    /// Command to add to history
     #[structopt(index = 1)]
     command: String,
 }
@@ -97,7 +106,7 @@ struct Server {
     #[structopt(short, long, default_value = into_str!(default_cache_path()))]
     cache_path: PathBuf,
 
-    /// Path to folder in which to store the history files.
+    /// Path to folder in which to store the history files
     #[structopt(
         short,
         long,
@@ -112,7 +121,7 @@ struct Server {
 
 #[derive(StructOpt, Debug)]
 struct Import {
-    /// Path to folder in which to store the history files.
+    /// Path to folder in which to store the history files
     #[structopt(
         short,
         long,
@@ -120,7 +129,8 @@ struct Import {
     )]
     data_dir: PathBuf,
 
-    #[structopt(short, long, default_value = into_str!(default_cache_path()))]
+    /// Path to the existing histdb sqlite file
+    #[structopt(short, long, default_value = into_str!(default_histdb_sqlite_path()))]
     import_file: PathBuf,
 }
 
@@ -133,24 +143,31 @@ struct Socket {
 
 #[derive(StructOpt, Debug)]
 enum SubCommand {
+    /// Add new command for current session
     #[structopt(name = "zshaddhistory")]
     ZSHAddHistory(ZSHAddHistory),
 
+    /// Start the server
     #[structopt(name = "server")]
     Server(Server),
 
+    /// Stop the server
     #[structopt(name = "stop")]
     Stop(Socket),
 
+    /// Finish command for current session
     #[structopt(name = "precmd")]
     PreCmd(Socket),
 
+    /// Get new session id
     #[structopt(name = "session_id")]
     SessionID,
 
+    /// Tell server to print currently running command
     #[structopt(name = "running")]
     Running(Socket),
 
+    /// Import entries from existing histdb sqlite file
     #[structopt(name = "import")]
     Import(Import),
 }
@@ -160,7 +177,7 @@ enum SubCommand {
     global_settings = &[ColoredHelp, VersionlessSubcommands, NextLineHelp, GlobalVersion]
 )]
 pub struct Opt {
-    /// Path to folder in which to store the history files.
+    /// Path to folder in which to store the history files
     #[structopt(
         short,
         long,
