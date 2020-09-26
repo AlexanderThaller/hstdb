@@ -56,6 +56,12 @@ pub enum Error {
 
     #[error("can not deserialize message: {0}")]
     DeserializeMessage(bincode::Error),
+
+    #[error("no parent directory for socket path")]
+    NoSocketPathParent,
+
+    #[error("can not create socket parent directory: {0}")]
+    CreateSocketPathParent(std::io::Error),
 }
 
 #[derive(Debug)]
@@ -109,6 +115,9 @@ fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Erro
 
 impl Server {
     pub fn start(mut self, socket_path: PathBuf) -> Result<Self, Error> {
+        let socket_path_parent = socket_path.parent().ok_or(Error::NoSocketPathParent)?;
+        std::fs::create_dir_all(socket_path_parent).map_err(Error::CreateSocketPathParent)?;
+
         info!("starting server listening on path {:?}", socket_path);
         let socket = UnixDatagram::bind(&socket_path).map_err(Error::BindSocket)?;
 
