@@ -2,6 +2,7 @@ mod client;
 mod entry;
 mod message;
 mod opt;
+mod run;
 mod server;
 mod store;
 
