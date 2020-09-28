@@ -106,10 +106,10 @@ pub fn default(
     let entries = store::new(data_dir).get_entries(
         hostname_filter,
         entries_count,
-        command,
-        dir_filter,
+        &command,
+        &dir_filter,
         no_subdirs,
-        command_text,
+        &command_text,
     )?;
 
     let mut table = Table::new();
@@ -177,7 +177,7 @@ pub fn zsh_add_history(command: String, socket_path: PathBuf) -> Result<(), Erro
 pub fn server(cache_path: PathBuf, socket_path: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     let server = server::new(cache_path, data_dir)?;
 
-    server.start(socket_path)?;
+    server.start(&socket_path)?;
 
     Ok(())
 }

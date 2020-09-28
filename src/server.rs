@@ -71,10 +71,10 @@ enum RunState {
 }
 
 impl RunState {
-    fn is_stop(&self) -> bool {
+    const fn is_stop(&self) -> bool {
         match self {
-            RunState::Stop => true,
-            RunState::Continue => false,
+            Self::Stop => true,
+            Self::Continue => false,
         }
     }
 }
@@ -114,7 +114,7 @@ fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Erro
 }
 
 impl Server {
-    pub fn start(mut self, socket_path: PathBuf) -> Result<Self, Error> {
+    pub fn start(mut self, socket_path: &PathBuf) -> Result<Self, Error> {
         let socket_path_parent = socket_path.parent().ok_or(Error::NoSocketPathParent)?;
         std::fs::create_dir_all(socket_path_parent).map_err(Error::CreateSocketPathParent)?;
 
@@ -189,7 +189,7 @@ impl Server {
 
         let entry = Entry::from_messages(start, finish);
 
-        self.store.add(entry).map_err(Error::AddStore)?;
+        self.store.add(&entry).map_err(Error::AddStore)?;
 
         Ok(RunState::Continue)
     }

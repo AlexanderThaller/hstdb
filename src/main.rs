@@ -1,3 +1,8 @@
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::unwrap_used)]
+#![warn(rust_2018_idioms, unused_lifetimes)]
+
 mod client;
 mod entry;
 mod message;

@@ -45,7 +45,7 @@ pub struct Store {
     data_dir: PathBuf,
 }
 
-pub fn new(data_dir: PathBuf) -> Store {
+pub const fn new(data_dir: PathBuf) -> Store {
     Store { data_dir }
 }
 
@@ -79,13 +79,13 @@ impl Store {
         Ok(())
     }
 
-    pub fn add(&self, entry: Entry) -> Result<(), Error> {
+    pub fn add(&self, entry: &Entry) -> Result<(), Error> {
         if entry.command.is_empty() {
             return Ok(());
         }
 
-        self.add_entry(&entry)?;
-        self.commit(format!("add entry from {:?}", &entry.hostname))?;
+        self.add_entry(entry)?;
+        self.commit(format!("add entry from {:?}", entry.hostname))?;
 
         Ok(())
     }
@@ -121,10 +121,10 @@ impl Store {
         &self,
         hostname: Option<String>,
         count: usize,
-        command_filter: Option<String>,
-        dir_filter: Option<PathBuf>,
+        command_filter: &Option<String>,
+        dir_filter: &Option<PathBuf>,
         no_subdirs: bool,
-        command_text: Option<Regex>,
+        command_text: &Option<Regex>,
     ) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = hostname {
             let index_path = self.data_dir.join(format!("{}.csv", hostname));
@@ -153,29 +153,23 @@ impl Store {
         let entries = entries
             .into_iter()
             .filter(|entry| {
-                if let Some(ref command) = command_filter {
-                    entry.command.starts_with(command)
-                } else {
-                    true
-                }
+                command_filter
+                    .as_ref()
+                    .map_or(true, |command| entry.command.starts_with(command))
             })
             .filter(|entry| {
-                if let Some(ref dir) = dir_filter {
+                dir_filter.as_ref().map_or(true, |dir| {
                     if no_subdirs {
                         entry.pwd == *dir
                     } else {
                         entry.pwd.as_path().starts_with(dir)
                     }
-                } else {
-                    true
-                }
+                })
             })
             .filter(|entry| {
-                if let Some(ref regex) = command_text {
-                    regex.is_match(&entry.command)
-                } else {
-                    true
-                }
+                command_text
+                    .as_ref()
+                    .map_or(true, |regex| regex.is_match(&entry.command))
             })
             .collect::<Vec<_>>()
             .into_iter()
