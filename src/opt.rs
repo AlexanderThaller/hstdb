@@ -9,7 +9,6 @@ use crate::{
     server,
     store,
 };
-use anyhow::Result;
 use chrono::{
     DateTime,
     Local,
@@ -237,16 +236,16 @@ pub struct Opt {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    ClientError(client::Error),
+    ClientError(#[from] client::Error),
 
     #[error("{0}")]
-    MessageError(message::Error),
+    MessageError(#[from] message::Error),
 
     #[error("{0}")]
-    ServerError(server::Error),
+    ServerError(#[from] server::Error),
 
     #[error("{0}")]
-    StoreError(store::Error),
+    StoreError(#[from] store::Error),
 
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
@@ -274,30 +273,6 @@ pub enum Error {
 
     #[error("can not convert chrono milliseconds: {0}")]
     ConvertDuration(std::num::TryFromIntError),
-}
-
-impl From<client::Error> for Error {
-    fn from(err: client::Error) -> Self {
-        Error::ClientError(err)
-    }
-}
-
-impl From<message::Error> for Error {
-    fn from(err: message::Error) -> Self {
-        Error::MessageError(err)
-    }
-}
-
-impl From<server::Error> for Error {
-    fn from(err: server::Error) -> Self {
-        Error::ServerError(err)
-    }
-}
-
-impl From<store::Error> for Error {
-    fn from(err: store::Error) -> Self {
-        Error::StoreError(err)
-    }
 }
 
 impl Opt {
