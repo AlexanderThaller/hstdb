@@ -25,12 +25,12 @@ pub enum Error {
     SendMessage(std::io::Error),
 }
 
-pub fn new(socket_path: PathBuf) -> Client {
+pub const fn new(socket_path: PathBuf) -> Client {
     Client { socket_path }
 }
 
 impl Client {
-    pub fn send(&self, message: Message) -> Result<(), Error> {
+    pub fn send(&self, message: &Message) -> Result<(), Error> {
         let socket = UnixDatagram::unbound().map_err(Error::CreateSocket)?;
 
         socket

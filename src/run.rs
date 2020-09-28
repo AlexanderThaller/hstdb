@@ -32,16 +32,16 @@ use uuid::Uuid;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    ClientError(#[from] client::Error),
+    Client(#[from] client::Error),
 
     #[error("{0}")]
-    MessageError(#[from] message::Error),
+    Message(#[from] message::Error),
 
     #[error("{0}")]
-    ServerError(#[from] server::Error),
+    Server(#[from] server::Error),
 
     #[error("{0}")]
-    StoreError(#[from] store::Error),
+    Store(#[from] store::Error),
 
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
@@ -71,6 +71,8 @@ pub enum Error {
     ConvertDuration(std::num::TryFromIntError),
 }
 
+#[allow(clippy::fn_params_excessive_bools)]
+#[allow(clippy::too_many_arguments)]
 pub fn default(
     in_current: bool,
     folder: Option<PathBuf>,
@@ -78,9 +80,9 @@ pub fn default(
     hostname: Option<String>,
     data_dir: PathBuf,
     entries_count: usize,
-    command: Option<String>,
+    command: &Option<String>,
     no_subdirs: bool,
-    command_text: Option<Regex>,
+    command_text: &Option<Regex>,
     no_format: bool,
     host: bool,
     duration: bool,
@@ -106,10 +108,10 @@ pub fn default(
     let entries = store::new(data_dir).get_entries(
         hostname_filter,
         entries_count,
-        &command,
+        command,
         &dir_filter,
         no_subdirs,
-        &command_text,
+        command_text,
     )?;
 
     let mut table = Table::new();
@@ -139,7 +141,7 @@ pub fn default(
 
     table.set_header(header);
 
-    for entry in entries.into_iter() {
+    for entry in entries {
         let mut row = vec![format_timestamp(entry.time_finished)];
 
         if host {
@@ -155,8 +157,8 @@ pub fn default(
         }
 
         row.push(format_uuid(entry.session_id));
-        row.push(format_pwd(entry.pwd)?);
-        row.push(format_command(entry.command, no_format));
+        row.push(format_pwd(&entry.pwd)?);
+        row.push(format_command(&entry.command, no_format));
 
         table.add_row(row);
     }
@@ -169,21 +171,21 @@ pub fn default(
 pub fn zsh_add_history(command: String, socket_path: PathBuf) -> Result<(), Error> {
     let data = CommandStart::from_env(command)?;
 
-    client::new(socket_path).send(Message::CommandStart(data))?;
+    client::new(socket_path).send(&Message::CommandStart(data))?;
 
     Ok(())
 }
 
-pub fn server(cache_path: PathBuf, socket_path: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+pub fn server(cache_path: PathBuf, socket_path: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     let server = server::new(cache_path, data_dir)?;
 
-    server.start(&socket_path)?;
+    server.start(socket_path)?;
 
     Ok(())
 }
 
 pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
-    client::new(socket_path).send(Message::Stop)?;
+    client::new(socket_path).send(&Message::Stop)?;
 
     Ok(())
 }
@@ -191,7 +193,7 @@ pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
 pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
     let data = CommandFinished::from_env()?;
 
-    client::new(socket_path).send(Message::CommandFinished(data))?;
+    client::new(socket_path).send(&Message::CommandFinished(data))?;
 
     Ok(())
 }
@@ -203,21 +205,12 @@ pub fn session_id() -> Result<(), Error> {
 }
 
 pub fn running(socket_path: PathBuf) -> Result<(), Error> {
-    client::new(socket_path).send(Message::Running)?;
+    client::new(socket_path).send(&Message::Running)?;
 
     Ok(())
 }
 
-pub fn import(import_file: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
-    let db = rusqlite::Connection::open(&import_file).map_err(Error::OpenSqliteDatabase)?;
-
-    let mut stmt = db
-        .prepare(
-            "select * from history left join places on places.id=history.place_id
-    left join commands on history.command_id=commands.id",
-        )
-        .map_err(Error::PrepareSqliteQuery)?;
-
+pub fn import(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -228,6 +221,15 @@ pub fn import(import_file: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
         pwd: String,
         command: String,
     }
+
+    let db = rusqlite::Connection::open(&import_file).map_err(Error::OpenSqliteDatabase)?;
+
+    let mut stmt = db
+        .prepare(
+            "select * from history left join places on places.id=history.place_id
+    left join commands on history.command_id=commands.id",
+        )
+        .map_err(Error::PrepareSqliteQuery)?;
 
     let entries = stmt
         .query_map(params![], |row| {
@@ -336,7 +338,7 @@ fn format_uuid(uuid: uuid::Uuid) -> String {
         .collect()
 }
 
-fn format_pwd(pwd: PathBuf) -> Result<String, Error> {
+fn format_pwd(pwd: &PathBuf) -> Result<String, Error> {
     let base_dirs = directories::BaseDirs::new().ok_or(Error::GetBaseDirectories)?;
     let home = base_dirs.home_dir();
 
@@ -367,7 +369,7 @@ fn format_duration(
         .replace(" ", ""))
 }
 
-fn format_command(command: String, no_format: bool) -> String {
+fn format_command(command: &str, no_format: bool) -> String {
     if no_format {
         command.trim().replace("\n", "\\n")
     } else {

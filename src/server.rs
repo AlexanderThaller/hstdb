@@ -150,13 +150,13 @@ impl Server {
         match message {
             Message::Stop => Ok(RunState::Stop),
             Message::CommandStart(data) => self.command_start(data),
-            Message::CommandFinished(data) => self.command_finished(data),
+            Message::CommandFinished(data) => self.command_finished(&data),
             Message::Running => self.command_running(),
         }
     }
 
     fn receive(socket: &UnixDatagram) -> Result<Message, Error> {
-        let mut buffer = [0u8; BUFFER_SIZE];
+        let mut buffer = [0_u8; BUFFER_SIZE];
         let (written, _) = socket
             .recv_from(&mut buffer)
             .map_err(Error::ReceiveFromSocket)?;
@@ -177,7 +177,7 @@ impl Server {
         Ok(RunState::Continue)
     }
 
-    fn command_finished(&mut self, finish: CommandFinished) -> Result<RunState, Error> {
+    fn command_finished(&mut self, finish: &CommandFinished) -> Result<RunState, Error> {
         if !self.entries.contains_key(&finish.session_id) {
             return Err(Error::SessionCommandNotStarted);
         }

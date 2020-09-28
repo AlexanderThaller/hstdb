@@ -3,7 +3,12 @@ use directories::ProjectDirs;
 use regex::Regex;
 use std::path::PathBuf;
 use structopt::{
-    clap::AppSettings::*,
+    clap::AppSettings::{
+        ColoredHelp,
+        GlobalVersion,
+        NextLineHelp,
+        VersionlessSubcommands,
+    },
     StructOpt,
 };
 
@@ -109,6 +114,7 @@ struct DataDir {
     data_dir: PathBuf,
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(StructOpt, Debug)]
 struct DefaultArgs {
     #[structopt(flatten)]
@@ -209,37 +215,22 @@ pub struct Opt {
 impl Opt {
     pub fn run(self) -> Result<(), run::Error> {
         let sub_command = self.sub_command;
+        let in_current = self.default_args.in_current;
+        let folder = self.default_args.folder;
+        let all_hosts = self.default_args.all_hosts;
+        let hostname = self.default_args.hostname;
+        let data_dir = self.default_args.data_dir.data_dir;
+        let entries_count = self.default_args.entries_count;
+        let command = self.default_args.command;
+        let no_subdirs = self.default_args.no_subdirs;
+        let command_text = self.default_args.command_text;
+        let no_format = self.default_args.no_format;
+        let host = self.default_args.host;
+        let duration = self.default_args.duration;
+        let status = self.default_args.status;
 
-        match sub_command {
-            Some(sub_command) => match sub_command {
-                SubCommand::ZSHAddHistory(o) => {
-                    run::zsh_add_history(o.command, o.socket_path.socket_path)
-                }
-                SubCommand::Server(o) => {
-                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
-                }
-                SubCommand::Stop(o) => run::stop(o.socket_path),
-                SubCommand::PreCmd(o) => run::precmd(o.socket_path),
-                SubCommand::SessionID => run::session_id(),
-                SubCommand::Running(o) => run::running(o.socket_path),
-                SubCommand::Import(o) => run::import(o.import_file, o.data_dir.data_dir),
-            },
-
-            None => {
-                let in_current = self.default_args.in_current;
-                let folder = self.default_args.folder;
-                let all_hosts = self.default_args.all_hosts;
-                let hostname = self.default_args.hostname;
-                let data_dir = self.default_args.data_dir.data_dir;
-                let entries_count = self.default_args.entries_count;
-                let command = self.default_args.command;
-                let no_subdirs = self.default_args.no_subdirs;
-                let command_text = self.default_args.command_text;
-                let no_format = self.default_args.no_format;
-                let host = self.default_args.host;
-                let duration = self.default_args.duration;
-                let status = self.default_args.status;
-
+        sub_command.map_or_else(
+            || {
                 run::default(
                     in_current,
                     folder,
@@ -247,15 +238,30 @@ impl Opt {
                     hostname,
                     data_dir,
                     entries_count,
-                    command,
+                    &command,
                     no_subdirs,
-                    command_text,
+                    &command_text,
                     no_format,
                     host,
                     duration,
                     status,
                 )
-            }
-        }
+            },
+            |sub_command| match sub_command {
+                SubCommand::ZSHAddHistory(o) => {
+                    run::zsh_add_history(o.command, o.socket_path.socket_path)
+                }
+                SubCommand::Server(o) => run::server(
+                    o.cache_path,
+                    &o.socket_path.socket_path,
+                    o.data_dir.data_dir,
+                ),
+                SubCommand::Stop(o) => run::stop(o.socket_path),
+                SubCommand::PreCmd(o) => run::precmd(o.socket_path),
+                SubCommand::SessionID => run::session_id(),
+                SubCommand::Running(o) => run::running(o.socket_path),
+                SubCommand::Import(o) => run::import(&o.import_file, o.data_dir.data_dir),
+            },
+        )
     }
 }

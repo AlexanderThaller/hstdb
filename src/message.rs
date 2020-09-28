@@ -72,7 +72,7 @@ impl CommandStart {
         let session_id = match env::var("HISTDB_RS_SESSION_ID") {
             Err(err) => match err {
                 env::VarError::NotPresent => Err(Error::MissingSessionID),
-                _ => Err(Error::InvalidSessionIDEnvVar(err)),
+                env::VarError::NotUnicode(_) => Err(Error::InvalidSessionIDEnvVar(err)),
             },
 
             Ok(s) => Uuid::parse_str(&s).map_err(Error::InvalidSessionID),
@@ -108,7 +108,7 @@ impl CommandFinished {
         let session_id = match env::var("HISTDB_RS_SESSION_ID") {
             Err(err) => match err {
                 env::VarError::NotPresent => Err(Error::MissingSessionID),
-                _ => Err(Error::InvalidSessionIDEnvVar(err)),
+                env::VarError::NotUnicode(_) => Err(Error::InvalidSessionIDEnvVar(err)),
             },
 
             Ok(s) => Uuid::parse_str(&s).map_err(Error::InvalidSessionID),
