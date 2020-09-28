@@ -72,6 +72,15 @@ fn default_histdb_sqlite_path() -> Result<String, Error> {
     Ok(file_path.to_string_lossy().to_string())
 }
 
+fn default_zsh_histfile_path() -> Result<String, Error> {
+    let base_dirs = directories::BaseDirs::new().ok_or(Error::BaseDirectory)?;
+
+    let home = base_dirs.home_dir();
+    let file_path = home.join(".histfile");
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 fn default_socket_path() -> Result<String, Error> {
     let project_dir = project_dir();
     let socket_path = project_dir?
@@ -109,12 +118,31 @@ struct Server {
 }
 
 #[derive(StructOpt, Debug)]
-struct Import {
+enum Import {
+    /// Import entries from existing histdb sqlite file
+    Histdb(ImportHistdb),
+
+    /// Import entries from existing zsh histfile
+    Histfile(ImportHistfile),
+}
+
+#[derive(StructOpt, Debug)]
+struct ImportHistdb {
     #[structopt(flatten)]
     data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
     #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_histdb_sqlite_path)))]
+    import_file: PathBuf,
+}
+
+#[derive(StructOpt, Debug)]
+struct ImportHistfile {
+    #[structopt(flatten)]
+    data_dir: DataDir,
+
+    /// Path to the existing zsh histfile file
+    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_zsh_histfile_path)))]
     import_file: PathBuf,
 }
 
@@ -282,7 +310,12 @@ impl Opt {
                 SubCommand::PreCmd(o) => run::precmd(o.socket_path),
                 SubCommand::SessionID => run::session_id(),
                 SubCommand::Running(o) => run::running(o.socket_path),
-                SubCommand::Import(o) => run::import(&o.import_file, o.data_dir.data_dir),
+                SubCommand::Import(s) => match s {
+                    Import::Histdb(o) => run::import_histdb(&o.import_file, o.data_dir.data_dir),
+                    Import::Histfile(o) => {
+                        run::import_histfile(&o.import_file, o.data_dir.data_dir)
+                    }
+                },
             },
         )
     }

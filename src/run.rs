@@ -24,6 +24,7 @@ use regex::Regex;
 use rusqlite::params;
 use std::{
     convert::TryInto,
+    io::BufRead,
     path::PathBuf,
 };
 use thiserror::Error;
@@ -69,6 +70,12 @@ pub enum Error {
 
     #[error("can not convert chrono milliseconds: {0}")]
     ConvertDuration(std::num::TryFromIntError),
+
+    #[error("can not open histfile: {0}")]
+    OpenHistfile(std::io::Error),
+
+    #[error("can not read line from histfile: {0}")]
+    ReadHistfileLine(std::io::Error),
 }
 
 #[allow(clippy::fn_params_excessive_bools)]
@@ -210,7 +217,7 @@ pub fn running(socket_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn import(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+pub fn import_histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -316,6 +323,20 @@ pub fn import(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     store.commit(format!("imported histdb file from {:?}", &hostname))?;
 
     Ok(())
+}
+
+pub fn import_histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+    #[derive(Debug)]
+    struct HistfileEntry {
+        time_finished: DateTime<Utc>,
+        result: usize,
+        command: String,
+    }
+
+    let histfile = std::fs::File::open(import_file).map_err(Error::OpenHistfile)?;
+    let reader = std::io::BufReader::new(histfile);
+
+    todo!()
 }
 
 fn format_timestamp(timestamp: DateTime<Utc>) -> String {
