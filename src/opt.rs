@@ -1,5 +1,6 @@
 use crate::run;
 use directories::ProjectDirs;
+use log::error;
 use regex::Regex;
 use std::path::PathBuf;
 use structopt::{
@@ -11,6 +12,7 @@ use structopt::{
     },
     StructOpt,
 };
+use thiserror::Error;
 
 macro_rules! into_str {
     ($x:expr) => {{
@@ -21,43 +23,63 @@ macro_rules! into_str {
     }};
 }
 
-fn project_dir() -> ProjectDirs {
-    ProjectDirs::from("com", "histdb-rs", "histdb-rs")
-        .expect("getting project dirs should never fail")
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("can not get base directories")]
+    BaseDirectory,
+
+    #[error("can not get runtime dir. make sure $XDG_RUNTIME_DIR is set")]
+    RuntimeDir,
+
+    #[error("can not get project dirs")]
+    ProjectDirs,
 }
 
-fn default_data_dir() -> String {
-    let project_dir = project_dir();
+fn get_default_or_fail<T>(func: fn() -> Result<T, Error>) -> T {
+    match func() {
+        Ok(s) => s,
+        Err(e) => {
+            error!("{}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn project_dir() -> Result<ProjectDirs, Error> {
+    ProjectDirs::from("com", "histdb-rs", "histdb-rs").ok_or(Error::ProjectDirs)
+}
+
+fn default_data_dir() -> Result<String, Error> {
+    let project_dir = project_dir()?;
     let data_dir = project_dir.data_dir();
 
-    data_dir.to_string_lossy().to_string()
+    Ok(data_dir.to_string_lossy().to_string())
 }
 
-fn default_cache_path() -> String {
-    let project_dir = project_dir();
+fn default_cache_path() -> Result<String, Error> {
+    let project_dir = project_dir()?;
     let cache_path = project_dir.cache_dir().join("server.json");
 
-    cache_path.to_string_lossy().to_string()
+    Ok(cache_path.to_string_lossy().to_string())
 }
 
-fn default_histdb_sqlite_path() -> String {
-    let base_dirs = directories::BaseDirs::new().expect("getting basedirs should never fail");
+fn default_histdb_sqlite_path() -> Result<String, Error> {
+    let base_dirs = directories::BaseDirs::new().ok_or(Error::BaseDirectory)?;
+
     let home = base_dirs.home_dir();
     let file_path = home.join(".histdb").join("zsh-history.db");
 
-    file_path.to_string_lossy().to_string()
+    Ok(file_path.to_string_lossy().to_string())
 }
 
-fn default_socket_path() -> String {
+fn default_socket_path() -> Result<String, Error> {
     let project_dir = project_dir();
-    let socket_path = project_dir
+    let socket_path = project_dir?
         .runtime_dir()
-        // TODO: Sometimes getting the runtime dir can fail maybe find a good fallback path and use
-        // that instead. Or find a good way to propagate the error to structopt.
-        .expect("getting the runtime dir should never fail")
+        .ok_or(Error::RuntimeDir)?
         .join("server_socket");
 
-    socket_path.to_string_lossy().to_string()
+    Ok(socket_path.to_string_lossy().to_string())
 }
 
 #[derive(StructOpt, Debug)]
@@ -76,7 +98,7 @@ struct ZSHAddHistory {
 #[derive(StructOpt, Debug)]
 struct Server {
     /// Path to the cachefile used to store entries between restarts
-    #[structopt(short, long, default_value = into_str!(default_cache_path()))]
+    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_cache_path)))]
     cache_path: PathBuf,
 
     #[structopt(flatten)]
@@ -92,14 +114,14 @@ struct Import {
     data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
-    #[structopt(short, long, default_value = into_str!(default_histdb_sqlite_path()))]
+    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_histdb_sqlite_path)))]
     import_file: PathBuf,
 }
 
 #[derive(StructOpt, Debug)]
 struct Socket {
     /// Path to the socket for communication with the server
-    #[structopt(short, long, default_value = into_str!(default_socket_path()))]
+    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_socket_path)))]
     socket_path: PathBuf,
 }
 
@@ -109,7 +131,7 @@ struct DataDir {
     #[structopt(
         short,
         long,
-        default_value = into_str!(default_data_dir())
+        default_value = into_str!(get_default_or_fail(default_data_dir))
     )]
     data_dir: PathBuf,
 }
