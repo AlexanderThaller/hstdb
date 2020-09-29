@@ -325,7 +325,7 @@ impl Opt {
                 SubCommand::Import(s) => match s {
                     Import::Histdb(o) => run::import_histdb(&o.import_file, o.data_dir.data_dir),
                     Import::Histfile(o) => {
-                        run::import_histfile(&o.import_file, &o.data_dir.data_dir)
+                        run::import_histfile(&o.import_file, o.data_dir.data_dir)
                     }
                 },
             },
