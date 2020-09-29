@@ -94,6 +94,8 @@ pub fn default(
     host: bool,
     duration: bool,
     status: bool,
+    show_pwd: bool,
+    show_session: bool,
 ) -> Result<(), Error> {
     let dir_filter = if in_current {
         Some(std::env::current_dir().map_err(Error::GetCurrentDir)?)
@@ -142,8 +144,14 @@ pub fn default(
         header.push(Cell::new("res").add_attribute(Attribute::Bold))
     };
 
-    header.push(Cell::new("ses").add_attribute(Attribute::Bold));
-    header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
+    if show_session {
+        header.push(Cell::new("ses").add_attribute(Attribute::Bold));
+    }
+
+    if show_pwd {
+        header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
+    }
+
     header.push(Cell::new("cmd").add_attribute(Attribute::Bold));
 
     table.set_header(header);
@@ -163,8 +171,13 @@ pub fn default(
             row.push(format!("{}", entry.result))
         }
 
-        row.push(format_uuid(entry.session_id));
-        row.push(format_pwd(&entry.pwd)?);
+        if show_session {
+            row.push(format_uuid(entry.session_id));
+        }
+        if show_pwd {
+            row.push(format_pwd(&entry.pwd)?);
+        }
+
         row.push(format_command(&entry.command, no_format));
 
         table.add_row(row);

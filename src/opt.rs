@@ -217,6 +217,14 @@ struct DefaultArgs {
     /// Disable fancy formatting
     #[structopt(long)]
     no_format: bool,
+
+    /// Show directory in which the command was run
+    #[structopt(long)]
+    show_pwd: bool,
+
+    /// Show session id for command
+    #[structopt(long)]
+    show_session: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -278,6 +286,8 @@ impl Opt {
         let host = self.default_args.host;
         let duration = self.default_args.duration;
         let status = self.default_args.status;
+        let show_pwd = self.default_args.show_pwd;
+        let show_session = self.default_args.show_session;
 
         sub_command.map_or_else(
             || {
@@ -295,6 +305,8 @@ impl Opt {
                     host,
                     duration,
                     status,
+                    show_pwd,
+                    show_session,
                 )
             },
             |sub_command| match sub_command {
