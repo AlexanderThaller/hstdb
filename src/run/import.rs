@@ -182,13 +182,6 @@ pub fn histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
         store.add_entry(&entry)?;
     }
 
-    let hostname = hostname::get()
-        .map_err(Error::GetHostname)?
-        .to_string_lossy()
-        .to_string();
-
-    store.commit(format!("imported histdb file from {:?}", &hostname))?;
-
     Ok(())
 }
 
@@ -333,8 +326,6 @@ pub fn histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
 
         store.add_entry(&entry)?;
     }
-
-    store.commit(format!("imported histfile file from {:?}", &hostname))?;
 
     Ok(())
 }

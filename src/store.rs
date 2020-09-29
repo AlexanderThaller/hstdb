@@ -6,7 +6,6 @@ use std::{
         Path,
         PathBuf,
     },
-    process::Command,
 };
 use thiserror::Error;
 
@@ -20,15 +19,6 @@ pub enum Error {
 
     #[error("can not serialize entry: {0}")]
     SerializeEntry(csv::Error),
-
-    #[error("can not git add changes: {0}")]
-    GitAdd(std::io::Error),
-
-    #[error("can not git commit changes: {0}")]
-    GitCommit(std::io::Error),
-
-    #[error("can not git init repository: {0}")]
-    GitInit(std::io::Error),
 
     #[error("glob is not valid: {0}")]
     InvalidGlob(glob::PatternError),
@@ -85,34 +75,6 @@ impl Store {
         }
 
         self.add_entry(entry)?;
-        self.commit(format!("add entry from {:?}", entry.hostname))?;
-
-        Ok(())
-    }
-
-    pub fn commit(&self, message: impl AsRef<str>) -> Result<(), Error> {
-        if !&self.data_dir.join(".git").exists() {
-            Command::new("git")
-                .arg("init")
-                .current_dir(&self.data_dir)
-                .output()
-                .map_err(Error::GitInit)?;
-        }
-
-        Command::new("git")
-            .arg("add")
-            .arg(":/")
-            .current_dir(&self.data_dir)
-            .output()
-            .map_err(Error::GitAdd)?;
-
-        Command::new("git")
-            .arg("commit")
-            .arg("-m")
-            .arg(message.as_ref())
-            .current_dir(&self.data_dir)
-            .output()
-            .map_err(Error::GitCommit)?;
 
         Ok(())
     }
