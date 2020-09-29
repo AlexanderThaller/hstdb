@@ -428,10 +428,10 @@ pub fn import_histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), E
 
     let mut entries = Vec::new();
 
-    for line in reader.lines() {
+    for (index, line) in reader.lines().enumerate() {
         let line = match line {
             Err(err) => {
-                warn!("{}", err);
+                warn!("can not read line {}: {}", index + 1, err);
 
                 continue;
             }
