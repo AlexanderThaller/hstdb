@@ -24,7 +24,7 @@ use regex::Regex;
 use rusqlite::params;
 use std::{
     convert::TryInto,
-    io::BufRead,
+    io::Write,
     path::PathBuf,
 };
 use thiserror::Error;
@@ -74,12 +74,16 @@ pub enum Error {
     #[error("can not open histfile: {0}")]
     OpenHistfile(std::io::Error),
 
-    #[error("can not read line from histfile: {0}")]
-    ReadHistfileLine(std::io::Error),
+    //#[error("can not read line from histfile: {0}")]
+    // ReadHistfileLine(std::io::Error),
+    #[error("can not write to stdout: {0}")]
+    WriteStdout(std::io::Error),
 }
 
 #[allow(clippy::fn_params_excessive_bools)]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::cognitive_complexity)]
 pub fn default(
     in_current: bool,
     folder: Option<PathBuf>,
@@ -123,67 +127,128 @@ pub fn default(
         command_text,
     )?;
 
-    let mut table = Table::new();
-    table.load_preset("                   ");
-    table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
     if no_format {
-        table.force_no_tty();
-    }
-
-    let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
-
-    if host {
-        header.push(Cell::new("host").add_attribute(Attribute::Bold))
-    };
-
-    if duration {
-        header.push(Cell::new("duration").add_attribute(Attribute::Bold))
-    };
-
-    if status {
-        header.push(Cell::new("res").add_attribute(Attribute::Bold))
-    };
-
-    if show_session {
-        header.push(Cell::new("ses").add_attribute(Attribute::Bold));
-    }
-
-    if show_pwd {
-        header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
-    }
-
-    header.push(Cell::new("cmd").add_attribute(Attribute::Bold));
-
-    table.set_header(header);
-
-    for entry in entries {
-        let mut row = vec![format_timestamp(entry.time_finished)];
+        let mut header = vec!["tmn"];
 
         if host {
-            row.push(entry.hostname)
-        }
+            header.push("host")
+        };
 
         if duration {
-            row.push(format_duration(entry.time_start, entry.time_finished)?)
-        }
+            header.push("duration")
+        };
 
         if status {
-            row.push(format!("{}", entry.result))
-        }
+            header.push("res")
+        };
 
         if show_session {
-            row.push(format_uuid(entry.session_id));
+            header.push("ses");
         }
+
         if show_pwd {
-            row.push(format_pwd(&entry.pwd)?);
+            header.push("pwd");
         }
 
-        row.push(format_command(&entry.command, no_format));
+        header.push("cmd");
 
-        table.add_row(row);
+        let stdout = std::io::stdout();
+        let mut handle = stdout.lock();
+
+        handle
+            .write_all(header.join("\t").as_bytes())
+            .map_err(Error::WriteStdout)?;
+        handle.write_all(b"\n").map_err(Error::WriteStdout)?;
+
+        for entry in entries {
+            let mut row = vec![format_timestamp(entry.time_finished)];
+
+            if host {
+                row.push(entry.hostname)
+            }
+
+            if duration {
+                row.push(format_duration(entry.time_start, entry.time_finished)?)
+            }
+
+            if status {
+                row.push(format!("{}", entry.result))
+            }
+
+            if show_session {
+                row.push(format_uuid(entry.session_id));
+            }
+            if show_pwd {
+                row.push(format_pwd(&entry.pwd)?);
+            }
+
+            row.push(format_command(&entry.command, no_format));
+
+            handle
+                .write_all(row.join("\t").as_bytes())
+                .map_err(Error::WriteStdout)?;
+            handle.write_all(b"\n").map_err(Error::WriteStdout)?;
+        }
+    } else {
+        let mut table = Table::new();
+        table.load_preset("                   ");
+        table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+
+        let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
+
+        if host {
+            header.push(Cell::new("host").add_attribute(Attribute::Bold))
+        };
+
+        if duration {
+            header.push(Cell::new("duration").add_attribute(Attribute::Bold))
+        };
+
+        if status {
+            header.push(Cell::new("res").add_attribute(Attribute::Bold))
+        };
+
+        if show_session {
+            header.push(Cell::new("ses").add_attribute(Attribute::Bold));
+        }
+
+        if show_pwd {
+            header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
+        }
+
+        header.push(Cell::new("cmd").add_attribute(Attribute::Bold));
+
+        table.set_header(header);
+
+        for entry in entries {
+            let mut row = vec![format_timestamp(entry.time_finished)];
+
+            if host {
+                row.push(entry.hostname)
+            }
+
+            if duration {
+                row.push(format_duration(entry.time_start, entry.time_finished)?)
+            }
+
+            if status {
+                row.push(format!("{}", entry.result))
+            }
+
+            if show_session {
+                row.push(format_uuid(entry.session_id));
+            }
+            if show_pwd {
+                row.push(format_pwd(&entry.pwd)?);
+            }
+
+            row.push(format_command(&entry.command, no_format));
+
+            table.add_row(row);
+        }
+
+        println!("{}", table);
     }
-
-    println!("{}", table);
 
     Ok(())
 }
@@ -338,7 +403,7 @@ pub fn import_histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Err
     Ok(())
 }
 
-pub fn import_histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+pub fn import_histfile(import_file: &PathBuf, _data_dir: &PathBuf) -> Result<(), Error> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,
@@ -347,7 +412,7 @@ pub fn import_histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), E
     }
 
     let histfile = std::fs::File::open(import_file).map_err(Error::OpenHistfile)?;
-    let reader = std::io::BufReader::new(histfile);
+    let _reader = std::io::BufReader::new(histfile);
 
     todo!()
 }
