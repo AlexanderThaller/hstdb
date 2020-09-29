@@ -323,9 +323,11 @@ impl Opt {
                 SubCommand::SessionID => run::session_id(),
                 SubCommand::Running(o) => run::running(o.socket_path),
                 SubCommand::Import(s) => match s {
-                    Import::Histdb(o) => run::import_histdb(&o.import_file, o.data_dir.data_dir),
+                    Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
+                        .map_err(run::Error::Import),
                     Import::Histfile(o) => {
-                        run::import_histfile(&o.import_file, o.data_dir.data_dir)
+                        run::import::histfile(&o.import_file, o.data_dir.data_dir)
+                            .map_err(run::Error::Import)
                     }
                 },
             },
