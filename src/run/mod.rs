@@ -4,6 +4,7 @@ use crate::{
     client,
     message,
     message::{
+        session_id_from_env,
         CommandFinished,
         CommandStart,
         Message,
@@ -254,6 +255,20 @@ pub fn server(cache_path: PathBuf, socket_path: &PathBuf, data_dir: PathBuf) -> 
 
 pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
     client::new(socket_path).send(&Message::Stop)?;
+
+    Ok(())
+}
+
+pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
+    let session_id = session_id_from_env()?;
+    client::new(socket_path).send(&Message::Disable(session_id))?;
+
+    Ok(())
+}
+
+pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
+    let session_id = session_id_from_env()?;
+    client::new(socket_path).send(&Message::Enable(session_id))?;
 
     Ok(())
 }

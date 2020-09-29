@@ -17,6 +17,10 @@ use uuid::Uuid;
 pub enum Message {
     Stop,
 
+    Disable(Uuid),
+
+    Enable(Uuid),
+
     CommandStart(CommandStart),
 
     CommandFinished(CommandFinished),
@@ -69,14 +73,7 @@ impl CommandStart {
 
         let user = env::var("USER").map_err(Error::GetUser)?;
 
-        let session_id = match env::var("HISTDB_RS_SESSION_ID") {
-            Err(err) => match err {
-                env::VarError::NotPresent => Err(Error::MissingSessionID),
-                env::VarError::NotUnicode(_) => Err(Error::InvalidSessionIDEnvVar(err)),
-            },
-
-            Ok(s) => Uuid::parse_str(&s).map_err(Error::InvalidSessionID),
-        }?;
+        let session_id = session_id_from_env()?;
 
         let hostname = hostname::get()
             .map_err(Error::GetHostname)?
@@ -105,14 +102,7 @@ impl CommandFinished {
     pub fn from_env() -> Result<Self, Error> {
         let time_stamp = Utc::now();
 
-        let session_id = match env::var("HISTDB_RS_SESSION_ID") {
-            Err(err) => match err {
-                env::VarError::NotPresent => Err(Error::MissingSessionID),
-                env::VarError::NotUnicode(_) => Err(Error::InvalidSessionIDEnvVar(err)),
-            },
-
-            Ok(s) => Uuid::parse_str(&s).map_err(Error::InvalidSessionID),
-        }?;
+        let session_id = session_id_from_env()?;
 
         let result = env::var("HISTDB_RS_RETVAL")
             .map_err(Error::MissingRetval)?
@@ -124,5 +114,16 @@ impl CommandFinished {
             time_stamp,
             result,
         })
+    }
+}
+
+pub fn session_id_from_env() -> Result<Uuid, Error> {
+    match env::var("HISTDB_RS_SESSION_ID") {
+        Err(err) => match err {
+            env::VarError::NotPresent => Err(Error::MissingSessionID),
+            env::VarError::NotUnicode(_) => Err(Error::InvalidSessionIDEnvVar(err)),
+        },
+
+        Ok(s) => Uuid::parse_str(&s).map_err(Error::InvalidSessionID),
     }
 }

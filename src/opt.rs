@@ -241,6 +241,14 @@ enum SubCommand {
     #[structopt(name = "stop")]
     Stop(Socket),
 
+    /// Disable history recording for current session
+    #[structopt(name = "disable")]
+    Disable(Socket),
+
+    /// Enable history recording for current session
+    #[structopt(name = "enable")]
+    Enable(Socket),
+
     /// Finish command for current session
     #[structopt(name = "precmd")]
     PreCmd(Socket),
@@ -319,6 +327,8 @@ impl Opt {
                     o.data_dir.data_dir,
                 ),
                 SubCommand::Stop(o) => run::stop(o.socket_path),
+                SubCommand::Disable(o) => run::disable(o.socket_path),
+                SubCommand::Enable(o) => run::enable(o.socket_path),
                 SubCommand::PreCmd(o) => run::precmd(o.socket_path),
                 SubCommand::SessionID => run::session_id(),
                 SubCommand::Running(o) => run::running(o.socket_path),

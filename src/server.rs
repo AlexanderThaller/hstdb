@@ -12,8 +12,15 @@ use log::{
     info,
     warn,
 };
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use std::{
-    collections::HashMap,
+    collections::{
+        HashMap,
+        HashSet,
+    },
     os::unix::net::UnixDatagram,
     path::PathBuf,
 };
@@ -37,7 +44,7 @@ pub enum Error {
     OpenCacheFile(std::io::Error),
 
     #[error("can not deserialize cache entries: {0}")]
-    DeserializeCacheEntries(serde_json::Error),
+    DeserializeState(serde_json::Error),
 
     #[error("can not bind to socket: {0}")]
     BindSocket(std::io::Error),
@@ -49,7 +56,7 @@ pub enum Error {
     CreateCacheFile(std::io::Error),
 
     #[error("can not serialize cache entries: {0}")]
-    SerializeCacheEntries(serde_json::Error),
+    SerializeState(serde_json::Error),
 
     #[error("can not receive message from socket: {0}")]
     ReceiveFromSocket(std::io::Error),
@@ -62,6 +69,9 @@ pub enum Error {
 
     #[error("can not create socket parent directory: {0}")]
     CreateSocketPathParent(std::io::Error),
+
+    #[error("not recording because session {0} is disabled")]
+    DisabledSession(Uuid),
 }
 
 #[derive(Debug)]
@@ -81,9 +91,15 @@ impl RunState {
 
 #[derive(Debug)]
 pub struct Server {
-    entries: HashMap<Uuid, CommandStart>,
+    state: State,
     store: Store,
     cache_path: PathBuf,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct State {
+    entries: HashMap<Uuid, CommandStart>,
+    disabled_session: HashSet<Uuid>,
 }
 
 pub fn new(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Error> {
@@ -91,7 +107,7 @@ pub fn new(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Error> {
         from_cachefile(cache_path, data_dir)
     } else {
         Ok(Server {
-            entries: HashMap::new(),
+            state: State::default(),
             store: store::new(data_dir),
             cache_path,
         })
@@ -102,12 +118,12 @@ fn from_cachefile(cache_path: PathBuf, data_dir: PathBuf) -> Result<Server, Erro
     let file = std::fs::File::open(&cache_path).map_err(Error::OpenCacheFile)?;
     let reader = std::io::BufReader::new(file);
 
-    let entries = serde_json::from_reader(reader).map_err(Error::DeserializeCacheEntries)?;
+    let state = serde_json::from_reader(reader).map_err(Error::DeserializeState)?;
 
     let store = store::new(data_dir);
 
     Ok(Server {
-        entries,
+        state,
         store,
         cache_path,
     })
@@ -141,7 +157,7 @@ impl Server {
         let file = std::fs::File::create(&self.cache_path).map_err(Error::CreateCacheFile)?;
         let writer = std::io::BufWriter::new(file);
 
-        serde_json::to_writer(writer, &self.entries).map_err(Error::SerializeCacheEntries)?;
+        serde_json::to_writer(writer, &self.state).map_err(Error::SerializeState)?;
 
         Ok(self)
     }
@@ -152,6 +168,8 @@ impl Server {
             Message::CommandStart(data) => self.command_start(data),
             Message::CommandFinished(data) => self.command_finished(&data),
             Message::Running => self.command_running(),
+            Message::Disable(uuid) => self.disable_session(uuid),
+            Message::Enable(uuid) => self.enable_session(uuid),
         }
     }
 
@@ -168,21 +186,30 @@ impl Server {
     }
 
     fn command_start(&mut self, start: CommandStart) -> Result<RunState, Error> {
-        if self.entries.contains_key(&start.session_id) {
+        if self.state.entries.contains_key(&start.session_id) {
             return Err(Error::SessionCommandAlreadyStarted);
         }
 
-        self.entries.insert(start.session_id, start);
+        if self.state.disabled_session.contains(&start.session_id) {
+            return Err(Error::DisabledSession(start.session_id));
+        }
+
+        self.state.entries.insert(start.session_id, start);
 
         Ok(RunState::Continue)
     }
 
     fn command_finished(&mut self, finish: &CommandFinished) -> Result<RunState, Error> {
-        if !self.entries.contains_key(&finish.session_id) {
+        if self.state.disabled_session.contains(&finish.session_id) {
+            return Err(Error::DisabledSession(finish.session_id));
+        }
+
+        if !self.state.entries.contains_key(&finish.session_id) {
             return Err(Error::SessionCommandNotStarted);
         }
 
         let start = self
+            .state
             .entries
             .remove(&finish.session_id)
             .expect("already tested if exists");
@@ -195,7 +222,7 @@ impl Server {
     }
 
     fn command_running(&self) -> Result<RunState, Error> {
-        self.entries.iter().for_each(|(session_id, entry)| {
+        self.state.entries.iter().for_each(|(session_id, entry)| {
             info!(
                 "session_id={session_id}, command={command}",
                 session_id = session_id,
@@ -203,6 +230,22 @@ impl Server {
             )
         });
 
+        Ok(RunState::Continue)
+    }
+
+    fn disable_session(&mut self, session_id: Uuid) -> Result<RunState, Error> {
+        self.state
+            .entries
+            .remove(&session_id)
+            .expect("already tested if exists");
+
+        self.state.disabled_session.insert(session_id);
+
+        Ok(RunState::Continue)
+    }
+
+    fn enable_session(&mut self, session_id: Uuid) -> Result<RunState, Error> {
+        self.state.disabled_session.remove(&session_id);
         Ok(RunState::Continue)
     }
 }
