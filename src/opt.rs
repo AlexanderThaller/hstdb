@@ -28,9 +28,6 @@ pub enum Error {
     #[error("can not get base directories")]
     BaseDirectory,
 
-    #[error("can not get runtime dir. make sure $XDG_RUNTIME_DIR is set")]
-    RuntimeDir,
-
     #[error("can not get project dirs")]
     ProjectDirs,
 }
@@ -83,9 +80,12 @@ fn default_zsh_histfile_path() -> Result<String, Error> {
 
 fn default_socket_path() -> Result<String, Error> {
     let project_dir = project_dir();
+
+    let fallback_path = PathBuf::from("/tmp/histdb-rs/");
+
     let socket_path = project_dir?
         .runtime_dir()
-        .ok_or(Error::RuntimeDir)?
+        .unwrap_or(&fallback_path)
         .join("server_socket");
 
     Ok(socket_path.to_string_lossy().to_string())
