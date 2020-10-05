@@ -2,6 +2,7 @@ pub mod import;
 
 use crate::{
     client,
+    entry::Entry,
     message,
     message::{
         session_id_from_env,
@@ -11,6 +12,10 @@ use crate::{
     },
     server,
     store,
+    store::{
+        filter,
+        Filter,
+    },
 };
 use chrono::{
     DateTime,
@@ -22,7 +27,6 @@ use comfy_table::{
     Cell,
     Table,
 };
-use regex::Regex;
 use std::{
     convert::TryInto,
     io::Write,
@@ -45,14 +49,11 @@ pub enum Error {
     #[error("{0}")]
     Store(#[from] store::Error),
 
-    #[error("can not get hostname: {0}")]
-    GetHostname(std::io::Error),
+    #[error("{0}")]
+    Filter(#[from] filter::Error),
 
     #[error("can not get base directories")]
     GetBaseDirectories,
-
-    #[error("can not get current directory: {0}")]
-    GetCurrentDir(std::io::Error),
 
     #[error("can not convert chrono milliseconds: {0}")]
     ConvertDuration(std::num::TryFromIntError),
@@ -64,175 +65,211 @@ pub enum Error {
     Import(import::Error),
 }
 
-#[allow(clippy::fn_params_excessive_bools)]
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_lines)]
-#[allow(clippy::cognitive_complexity)]
-pub fn default(
-    in_current: bool,
-    folder: Option<PathBuf>,
-    all_hosts: bool,
-    hostname: Option<String>,
-    data_dir: PathBuf,
-    entries_count: usize,
-    command: &Option<String>,
-    no_subdirs: bool,
-    command_text: &Option<Regex>,
-    no_format: bool,
-    host: bool,
-    duration: bool,
-    status: bool,
-    show_pwd: bool,
-    show_session: bool,
-) -> Result<(), Error> {
-    let dir_filter = if in_current {
-        Some(std::env::current_dir().map_err(Error::GetCurrentDir)?)
+#[derive(Debug)]
+pub struct TableDisplay {
+    pub format: bool,
+
+    pub duration: Display,
+    pub header: Display,
+    pub host: Display,
+    pub pwd: Display,
+    pub session: Display,
+    pub status: Display,
+}
+
+impl Default for TableDisplay {
+    fn default() -> Self {
+        Self {
+            format: true,
+
+            duration: Display::Hide,
+            header: Display::Show,
+            host: Display::Hide,
+            pwd: Display::Hide,
+            session: Display::Hide,
+            status: Display::Hide,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Display {
+    Hide,
+    Show,
+}
+
+impl Default for Display {
+    fn default() -> Self {
+        Self::Hide
+    }
+}
+
+impl Display {
+    const fn is_show(&self) -> bool {
+        match self {
+            Self::Hide => false,
+            Self::Show => true,
+        }
+    }
+
+    pub const fn should_hide(b: bool) -> Self {
+        if b {
+            Self::Hide
+        } else {
+            Self::Show
+        }
+    }
+
+    pub const fn should_show(b: bool) -> Self {
+        if b {
+            Self::Show
+        } else {
+            Self::Hide
+        }
+    }
+}
+
+pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Result<(), Error> {
+    let entries = store::new(data_dir).get_entries(filter)?;
+
+    dbg!(display);
+
+    if display.format {
+        default_format(display, entries)
     } else {
-        folder
+        default_no_format(display, entries)
+    }
+}
+
+pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
+    let mut header = vec!["tmn"];
+
+    if display.host.is_show() {
+        header.push("host")
     };
 
-    let current_hostname = hostname::get()
-        .map_err(Error::GetHostname)?
-        .to_string_lossy()
-        .to_string();
-
-    let hostname_filter = if all_hosts {
-        None
-    } else {
-        Some(hostname.unwrap_or(current_hostname))
+    if display.duration.is_show() {
+        header.push("duration")
     };
 
-    let entries = store::new(data_dir).get_entries(
-        hostname_filter,
-        entries_count,
-        command,
-        &dir_filter,
-        no_subdirs,
-        command_text,
-    )?;
+    if display.status.is_show() {
+        header.push("res")
+    };
 
-    if no_format {
-        let mut header = vec!["tmn"];
+    if display.session.is_show() {
+        header.push("ses");
+    }
 
-        if host {
-            header.push("host")
-        };
+    if display.pwd.is_show() {
+        header.push("pwd");
+    }
 
-        if duration {
-            header.push("duration")
-        };
+    header.push("cmd");
 
-        if status {
-            header.push("res")
-        };
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
 
-        if show_session {
-            header.push("ses");
-        }
-
-        if show_pwd {
-            header.push("pwd");
-        }
-
-        header.push("cmd");
-
-        let stdout = std::io::stdout();
-        let mut handle = stdout.lock();
-
+    if display.header.is_show() {
         handle
             .write_all(header.join("\t").as_bytes())
             .map_err(Error::WriteStdout)?;
         handle.write_all(b"\n").map_err(Error::WriteStdout)?;
-
-        for entry in entries {
-            let mut row = vec![format_timestamp(entry.time_finished)];
-
-            if host {
-                row.push(entry.hostname)
-            }
-
-            if duration {
-                row.push(format_duration(entry.time_start, entry.time_finished)?)
-            }
-
-            if status {
-                row.push(format!("{}", entry.result))
-            }
-
-            if show_session {
-                row.push(format_uuid(entry.session_id));
-            }
-            if show_pwd {
-                row.push(format_pwd(&entry.pwd)?);
-            }
-
-            row.push(format_command(&entry.command, no_format));
-
-            handle
-                .write_all(row.join("\t").as_bytes())
-                .map_err(Error::WriteStdout)?;
-            handle.write_all(b"\n").map_err(Error::WriteStdout)?;
-        }
-    } else {
-        let mut table = Table::new();
-        table.load_preset("                   ");
-        table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
-
-        let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
-
-        if host {
-            header.push(Cell::new("host").add_attribute(Attribute::Bold))
-        };
-
-        if duration {
-            header.push(Cell::new("duration").add_attribute(Attribute::Bold))
-        };
-
-        if status {
-            header.push(Cell::new("res").add_attribute(Attribute::Bold))
-        };
-
-        if show_session {
-            header.push(Cell::new("ses").add_attribute(Attribute::Bold));
-        }
-
-        if show_pwd {
-            header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
-        }
-
-        header.push(Cell::new("cmd").add_attribute(Attribute::Bold));
-
-        table.set_header(header);
-
-        for entry in entries {
-            let mut row = vec![format_timestamp(entry.time_finished)];
-
-            if host {
-                row.push(entry.hostname)
-            }
-
-            if duration {
-                row.push(format_duration(entry.time_start, entry.time_finished)?)
-            }
-
-            if status {
-                row.push(format!("{}", entry.result))
-            }
-
-            if show_session {
-                row.push(format_uuid(entry.session_id));
-            }
-            if show_pwd {
-                row.push(format_pwd(&entry.pwd)?);
-            }
-
-            row.push(format_command(&entry.command, no_format));
-
-            table.add_row(row);
-        }
-
-        println!("{}", table);
     }
+
+    for entry in entries {
+        let mut row = vec![format_timestamp(entry.time_finished)];
+
+        if display.host.is_show() {
+            row.push(entry.hostname)
+        }
+
+        if display.duration.is_show() {
+            row.push(format_duration(entry.time_start, entry.time_finished)?)
+        }
+
+        if display.status.is_show() {
+            row.push(format!("{}", entry.result))
+        }
+
+        if display.session.is_show() {
+            row.push(format_uuid(entry.session_id));
+        }
+        if display.pwd.is_show() {
+            row.push(format_pwd(&entry.pwd)?);
+        }
+
+        row.push(format_command(&entry.command, display.format));
+
+        handle
+            .write_all(row.join("\t").as_bytes())
+            .map_err(Error::WriteStdout)?;
+        handle.write_all(b"\n").map_err(Error::WriteStdout)?;
+    }
+
+    Ok(())
+}
+
+pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
+    let mut table = Table::new();
+    table.load_preset("                   ");
+    table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
+
+    let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
+
+    if display.host.is_show() {
+        header.push(Cell::new("host").add_attribute(Attribute::Bold))
+    };
+
+    if display.duration.is_show() {
+        header.push(Cell::new("duration").add_attribute(Attribute::Bold))
+    };
+
+    if display.status.is_show() {
+        header.push(Cell::new("res").add_attribute(Attribute::Bold))
+    };
+
+    if display.session.is_show() {
+        header.push(Cell::new("ses").add_attribute(Attribute::Bold));
+    }
+
+    if display.pwd.is_show() {
+        header.push(Cell::new("pwd").add_attribute(Attribute::Bold));
+    }
+
+    header.push(Cell::new("cmd").add_attribute(Attribute::Bold));
+
+    if display.header.is_show() {
+        table.set_header(header);
+    }
+
+    for entry in entries {
+        let mut row = vec![format_timestamp(entry.time_finished)];
+
+        if display.host.is_show() {
+            row.push(entry.hostname)
+        }
+
+        if display.duration.is_show() {
+            row.push(format_duration(entry.time_start, entry.time_finished)?)
+        }
+
+        if display.status.is_show() {
+            row.push(format!("{}", entry.result))
+        }
+
+        if display.session.is_show() {
+            row.push(format_uuid(entry.session_id));
+        }
+        if display.pwd.is_show() {
+            row.push(format_pwd(&entry.pwd)?);
+        }
+
+        row.push(format_command(&entry.command, display.format));
+
+        table.add_row(row);
+    }
+
+    println!("{}", table);
 
     Ok(())
 }
@@ -344,10 +381,10 @@ fn format_duration(
         .replace(" ", ""))
 }
 
-fn format_command(command: &str, no_format: bool) -> String {
-    if no_format {
-        command.trim().replace("\n", "\\n")
-    } else {
+fn format_command(command: &str, format: bool) -> String {
+    if format {
         command.trim().to_string()
+    } else {
+        command.trim().replace("\n", "\\n")
     }
 }

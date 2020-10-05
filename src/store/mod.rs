@@ -1,5 +1,7 @@
+pub mod filter;
+
 use crate::entry::Entry;
-use regex::Regex;
+pub use filter::Filter;
 use std::{
     fs,
     path::{
@@ -28,6 +30,9 @@ pub enum Error {
 
     #[error("can not read log file {0:?}: {1}")]
     ReadLogFile(PathBuf, csv::Error),
+
+    #[error("{0}")]
+    Filter(#[from] filter::Error),
 }
 
 #[derive(Debug)]
@@ -79,16 +84,8 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_entries(
-        &self,
-        hostname: Option<String>,
-        count: usize,
-        command_filter: &Option<String>,
-        dir_filter: &Option<PathBuf>,
-        no_subdirs: bool,
-        command_text: &Option<Regex>,
-    ) -> Result<Vec<Entry>, Error> {
-        let mut entries: Vec<_> = if let Some(hostname) = hostname {
+    pub fn get_entries(&self, filter: &Filter) -> Result<Vec<Entry>, Error> {
+        let mut entries: Vec<_> = if let Some(hostname) = filter.get_hostname() {
             let index_path = self.data_dir.join(format!("{}.csv", hostname));
 
             Self::read_log_file(index_path)?
@@ -112,33 +109,7 @@ impl Store {
 
         entries.sort();
 
-        let entries = entries
-            .into_iter()
-            .filter(|entry| {
-                command_filter
-                    .as_ref()
-                    .map_or(true, |command| entry.command.starts_with(command))
-            })
-            .filter(|entry| {
-                dir_filter.as_ref().map_or(true, |dir| {
-                    if no_subdirs {
-                        entry.pwd == *dir
-                    } else {
-                        entry.pwd.as_path().starts_with(dir)
-                    }
-                })
-            })
-            .filter(|entry| {
-                command_text
-                    .as_ref()
-                    .map_or(true, |regex| regex.is_match(&entry.command))
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .take(count)
-            .rev()
-            .collect();
+        let entries = filter.filter_entries(entries)?;
 
         Ok(entries)
     }

@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
-#![warn(clippy::nursery)]
 #![warn(clippy::unwrap_used)]
-#![warn(rust_2018_idioms, unused_lifetimes)]
+#![warn(rust_2018_idioms, unused_lifetimes, missing_debug_implementations)]
+#![forbid(unsafe_code)]
 
 mod client;
 mod entry;

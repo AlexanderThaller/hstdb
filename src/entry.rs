@@ -26,7 +26,6 @@ pub struct Entry {
 }
 
 impl Entry {
-    #[allow(clippy::missing_const_for_fn)]
     pub fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
         Self {
             command: start.command,

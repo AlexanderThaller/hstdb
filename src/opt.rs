@@ -1,4 +1,11 @@
-use crate::run;
+use crate::{
+    run,
+    run::{
+        Display,
+        TableDisplay,
+    },
+    store::Filter,
+};
 use directories::ProjectDirs;
 use log::error;
 use regex::Regex;
@@ -194,10 +201,6 @@ struct DefaultArgs {
     #[structopt(long)]
     no_subdirs: bool,
 
-    /// Print host column
-    #[structopt(long)]
-    host: bool,
-
     /// Filter by given hostname
     #[structopt(long, conflicts_with = "all_hosts")]
     hostname: Option<String>,
@@ -206,17 +209,21 @@ struct DefaultArgs {
     #[structopt(long, conflicts_with = "hostname")]
     all_hosts: bool,
 
+    /// Disable fancy formatting
+    #[structopt(long)]
+    disable_formatting: bool,
+
+    /// Print host column
+    #[structopt(long)]
+    show_host: bool,
+
     /// Print returncode of command
     #[structopt(long)]
-    status: bool,
+    show_status: bool,
 
     /// Show how long the command ran
     #[structopt(long)]
-    duration: bool,
-
-    /// Disable fancy formatting
-    #[structopt(long)]
-    no_format: bool,
+    show_duration: bool,
 
     /// Show directory in which the command was run
     #[structopt(long)]
@@ -225,6 +232,10 @@ struct DefaultArgs {
     /// Show session id for command
     #[structopt(long)]
     show_session: bool,
+
+    /// Disable printing of header
+    #[structopt(long)]
+    hide_header: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -290,32 +301,35 @@ impl Opt {
         let command = self.default_args.command;
         let no_subdirs = self.default_args.no_subdirs;
         let command_text = self.default_args.command_text;
-        let no_format = self.default_args.no_format;
-        let host = self.default_args.host;
-        let duration = self.default_args.duration;
-        let status = self.default_args.status;
-        let show_pwd = self.default_args.show_pwd;
-        let show_session = self.default_args.show_session;
+
+        let format = !self.default_args.disable_formatting;
+        let duration = Display::should_show(self.default_args.show_duration);
+        let header = Display::should_hide(self.default_args.hide_header);
+        let host = Display::should_show(self.default_args.show_host);
+        let pwd = Display::should_show(self.default_args.show_pwd);
+        let session = Display::should_show(self.default_args.show_session);
+        let status = Display::should_show(self.default_args.show_status);
 
         sub_command.map_or_else(
             || {
-                run::default(
-                    in_current,
-                    folder,
-                    all_hosts,
-                    hostname,
-                    data_dir,
-                    entries_count,
-                    &command,
-                    no_subdirs,
-                    &command_text,
-                    no_format,
-                    host,
+                let filter = Filter::default()
+                    .directory(folder, in_current, no_subdirs)?
+                    .hostname(hostname, all_hosts)?
+                    .count(entries_count)
+                    .command(command, command_text);
+
+                let display = TableDisplay {
+                    format,
+
                     duration,
+                    header,
+                    host,
+                    pwd,
+                    session,
                     status,
-                    show_pwd,
-                    show_session,
-                )
+                };
+
+                run::default(&filter, &display, data_dir)
             },
             |sub_command| match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
