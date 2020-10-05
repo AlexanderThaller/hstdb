@@ -281,9 +281,9 @@ pub fn histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     }
 
     if acc_command.is_some() {
-        let time_finished = dbg!(acc_time_finished).unwrap();
-        let result = dbg!(acc_result).unwrap();
-        let command = dbg!(acc_command).unwrap();
+        let time_finished = acc_time_finished.unwrap();
+        let result = acc_result.unwrap();
+        let command = acc_command.unwrap();
 
         entries.push(HistfileEntry {
             time_finished,

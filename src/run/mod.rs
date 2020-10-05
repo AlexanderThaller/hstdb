@@ -132,8 +132,6 @@ impl Display {
 pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Result<(), Error> {
     let entries = store::new(data_dir).get_entries(filter)?;
 
-    dbg!(display);
-
     if display.format {
         default_format(display, entries)
     } else {
