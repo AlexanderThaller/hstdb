@@ -328,6 +328,12 @@ pub fn running(socket_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn init() -> Result<(), Error> {
+    println!("{}", include_str!("../../resources/init.zsh"));
+
+    Ok(())
+}
+
 fn format_timestamp(timestamp: DateTime<Utc>) -> String {
     let today = Local::now().date();
     let local = timestamp.with_timezone(&chrono::offset::Local);

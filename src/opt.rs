@@ -275,6 +275,10 @@ enum SubCommand {
     /// Import entries from existing histdb sqlite file
     #[structopt(name = "import")]
     Import(Import),
+
+    /// Print out shell functions needed by histdb and set current session id
+    #[structopt(name = "init")]
+    Init,
 }
 
 #[derive(StructOpt, Debug)]
@@ -354,6 +358,7 @@ impl Opt {
                             .map_err(run::Error::Import)
                     }
                 },
+                SubCommand::Init => run::init(),
             },
         )
     }
