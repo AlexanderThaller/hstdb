@@ -1,0 +1,9 @@
+[Unit]
+Description=Start histdb-rs server
+
+[Service]
+ExecStart=%h/.cargo/bin/histdb-rs server
+ExecStop=%h/.cargo/bin/histdb-rs stop
+
+[Install]
+WantedBy=default.target
