@@ -25,8 +25,9 @@ histdb-rs stop
 
 In the future `CTRL+C` should also work.
 
-You can also use the systemd unit file in `histdb-rs.service` which you can
-copy to `"$HOME/.config/systemd` and enable/start with the following:
+You can also use the systemd unit file in
+[`histdb-rs.service`](histdb-rs.service) which you can copy to
+`"$HOME/.config/systemd` and enable/start with the following:
 
 ```
 systemctl --user daemon-reload
