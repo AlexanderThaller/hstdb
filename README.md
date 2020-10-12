@@ -18,6 +18,51 @@ Has pretty much the same feature set as zsh-histdb:
 * Exit status of the command
 * Import from zsh histfile and zsh-histdb sqlite database
 
+## Installation
+
+Currently you need nightly to build histdb-rs. We are using the strip
+functinality to decrease the binary size automatically.
+
+```
+cargo +nightly install --path .
+```
+
+After that you need to start the server. This might change in the future.
+
+```
+histdb-rs server
+```
+
+to stop the server you have to run
+
+```
+histdb-rs stop
+```
+
+In the future `CTRL+C` should also work.
+
+You can also use the systemd unit file in
+[`histdb-rs.service`](histdb-rs.service) which you can copy to
+`"$HOME/.config/systemd` and enable/start with the following:
+
+```
+systemctl --user daemon-reload
+systemctl --user enable histdb-rs.service
+systemctl --user start histdb-rs.service
+```
+
+After that you can add the following to your `.zshrc` to enable histdb-rs for
+you shell.
+
+```
+eval "$(histdb-rs init)"
+```
+
+You can run that in your current shell to enable histdb-rs or restart your
+shell.
+
+## Usage
+
 Help output of default command:
 
 ```
@@ -121,50 +166,6 @@ SUBCOMMANDS:
 
 ```
 
-## Installation
-
-Currently you need nightly to build histdb-rs. We are using the strip
-functinality to decrease the binary size automatically.
-
-```
-cargo +nightly install --path .
-```
-
-After that you need to start the server. This might change in the future.
-
-```
-histdb-rs server
-```
-
-to stop the server you have to run
-
-```
-histdb-rs stop
-```
-
-In the future `CTRL+C` should also work.
-
-You can also use the systemd unit file in
-[`histdb-rs.service`](histdb-rs.service) which you can copy to
-`"$HOME/.config/systemd` and enable/start with the following:
-
-```
-systemctl --user daemon-reload
-systemctl --user enable histdb-rs.service
-systemctl --user start histdb-rs.service
-```
-
-After that you can add the following to your `.zshrc` to enable histdb-rs for
-you shell.
-
-```
-eval "$(histdb-rs init)"
-```
-
-You can run that in your current shell to enable histdb-rs or restart your
-shell.
-
-## Usage
 
 The most basic command ist just running `histdb-rs` without any arguments:
 
