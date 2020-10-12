@@ -181,3 +181,16 @@ That will print the history for the current machine. By default only the last
 
 Histdb-rs was written to easily sync the history between multiple machines. For
 that histdb-rs will write sepperate history files for each machine.
+
+If you want to sync between machines go to the datadir (default is
+`$HOME/.local/share/histdb-rs`) and run the following commands:
+
+```
+git init
+git add :/
+git commit -m "Initial commit"
+```
+
+After that you can configure origins and start syncing the files between
+machines. There is no autocommit/autosync implemented as we dont want to have
+commits for each command run. This could be changed in the future.
