@@ -27,6 +27,11 @@ functionality to decrease the binary size automatically.
 cargo +nightly install --path .
 ```
 
+Or install it from crates.io
+```
+cargo +nightly install histdb-rs
+```
+
 After that you need to start the server. This might change in the future.
 
 ```
