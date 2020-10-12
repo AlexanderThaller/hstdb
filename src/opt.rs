@@ -272,7 +272,7 @@ enum SubCommand {
     #[structopt(name = "running")]
     Running(Socket),
 
-    /// Import entries from existing histdb sqlite file
+    /// Import entries from existing histdb sqlite or zsh histfile
     #[structopt(name = "import")]
     Import(Import),
 

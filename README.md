@@ -21,7 +21,7 @@ Has pretty much the same feature set as zsh-histdb:
 ## Installation
 
 Currently you need nightly to build histdb-rs. We are using the strip
-functinality to decrease the binary size automatically.
+functionality to decrease the binary size automatically.
 
 ```
 cargo +nightly install --path .
@@ -33,7 +33,7 @@ After that you need to start the server. This might change in the future.
 histdb-rs server
 ```
 
-to stop the server you have to run
+To stop the server you have to run
 
 ```
 histdb-rs stop
@@ -118,7 +118,7 @@ OPTIONS:
             Only print entries containing the given regex
 
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: /home/athaller/.local/share/histdb-rs]
+            Path to folder in which to store the history files [default: /.local/share/histdb-rs]
 
     -e, --entries-count <entries-count>
             How many entries to print [default: 25]
@@ -179,7 +179,7 @@ That will print the history for the current machine. By default only the last
 ## Git
 
 Histdb-rs was written to easily sync the history between multiple machines. For
-that histdb-rs will write sepperate history files for each machine.
+that histdb-rs will write separate history files for each machine.
 
 If you want to sync between machines go to the datadir (default is
 `$HOME/.local/share/histdb-rs`) and run the following commands:
@@ -191,5 +191,84 @@ git commit -m "Initial commit"
 ```
 
 After that you can configure origins and start syncing the files between
-machines. There is no autocommit/autosync implemented as we dont want to have
+machines. There is no autocommit/autosync implemented as we don't want to have
 commits for each command run. This could be changed in the future.
+
+## Import
+
+### zsh-histdb
+
+```
+» histdb import histdb -h
+histdb-rs-import-histdb 0.1.0
+Import entries from existing histdb sqlite file
+
+USAGE:
+    histdb-rs import histdb [OPTIONS]
+
+FLAGS:
+    -h, --help
+            Prints help information
+
+
+OPTIONS:
+    -d, --data-dir <data-dir>
+            Path to folder in which to store the history files [default: $HOME/.local/share/histdb-rs]
+
+    -i, --import-file <import-file>
+            Path to the existing histdb sqlite file [default: $HOME/.histdb/zsh-history.db]
+```
+
+If the defaults for the `data-dir` and the `import-file` are fine you can just
+run the following command:
+
+```
+histdb import histdb
+```
+
+This will create CSV files for each `hostname` found in the sqlite database. It
+will create a UUID for each unique session found in sqlite so command run in the
+same session should still be grouped together.
+
+### zsh histfile
+
+```
+» histdb import histfile -h
+histdb-rs-import-histfile 0.1.0
+Import entries from existing zsh histfile
+
+USAGE:
+    histdb-rs import histfile [OPTIONS]
+
+FLAGS:
+    -h, --help
+            Prints help information
+
+
+OPTIONS:
+    -d, --data-dir <data-dir>
+            Path to folder in which to store the history files [default: $HOME/.local/share/histdb-rs]
+
+    -i, --import-file <import-file>
+            Path to the existing zsh histfile file [default: $HOME/.histfile]
+```
+
+If the defaults for the `data-dir` and the `import-file` are fine you can just
+run the following command:
+
+```
+histdb import histfile
+```
+
+As the information stored in the histfile is pretty limited the following
+information will be stored:
+
+* `time_finished` will be parsed from the histfile
+* `result` (exit code) will be parsed from the histfile
+* `command` will be parse from the histfile
+* `time_start` will be copied over from `time_finished`
+* `hostname` will use the current machines hostname
+* `pwd` will be set to the current users home directory
+* `session_id` will be generated and used for all commands imported from the
+histfile
+* `user` will use the current user thats running the import
