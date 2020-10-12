@@ -1,6 +1,6 @@
 # histdb-rs
 
-![Build Status](https://github.com/AlexanderThaller/histdb-rs/workflows/Rust/badge.svg?branch=main)
+[![Build Status](https://github.com/AlexanderThaller/histdb-rs/workflows/Rust/badge.svg?branch=main)](https://github.com/AlexanderThaller/histdb-rs/actions?query=workflow%3ARust)
 [![crates.io](https://img.shields.io/crates/v/histdb-rs.svg)](https://crates.io/crates/histdb-rs)
 
 Better history management for zsh. Based on ideas from
