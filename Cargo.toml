@@ -6,6 +6,12 @@ version = "0.1.0"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 edition = "2018"
 
+description = "Better history management for zsh. Based on ideas from [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb)."
+documentation = "https://docs.rs/histdb-rs/"
+homepage = "https://github.com/AlexanderThaller/histdb-rs"
+license = "MIT"
+readme = "README.md"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
