@@ -118,7 +118,7 @@ OPTIONS:
             Only print entries containing the given regex
 
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: /.local/share/histdb-rs]
+            Path to folder in which to store the history files [default: $HOME/.local/share/histdb-rs]
 
     -e, --entries-count <entries-count>
             How many entries to print [default: 25]
