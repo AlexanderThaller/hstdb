@@ -1,7 +1,12 @@
 # histdb-rs
 
+![Build Status](https://github.com/AlexanderThaller/histdb-rs/workflows/Rust/badge.svg?branch=main)
+[![crates.io](https://img.shields.io/crates/v/histdb-rs.svg)](https://crates.io/crates/histdb-rs)
+
 Better history management for zsh. Based on ideas from
 [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
+
+Licensed under MIT.
 
 It was mainly written because the sqlite merging broke a few to many times for
 me and using a sqlite database seemed overkill.
