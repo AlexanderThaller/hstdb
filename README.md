@@ -115,7 +115,7 @@ OPTIONS:
             Only print entries beginning with the given command
 
     -t, --text <command-text>
-            Only print entries beginning with the given command
+            Only print entries containing the given regex
 
     -d, --data-dir <data-dir>
             Path to folder in which to store the history files [default: /home/athaller/.local/share/histdb-rs]
@@ -163,9 +163,7 @@ SUBCOMMANDS:
 
     zshaddhistory
             Add new command for current session
-
 ```
-
 
 The most basic command ist just running `histdb-rs` without any arguments:
 
