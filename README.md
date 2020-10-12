@@ -1,6 +1,6 @@
 # histdb-rs
 
-[![Build Status](https://github.com/AlexanderThaller/histdb-rs/workflows/Rust/badge.svg?branch=main)](https://github.com/AlexanderThaller/histdb-rs/actions?query=workflow%3ARust)
+[![Build Status](https://github.com/AlexanderThaller/histdb-rs/workflows/Rust/badge.svg?branch=main)](https://github.com/AlexanderThaller/histdb-rs/actions?query=workflow%3ARusteain)
 [![crates.io](https://img.shields.io/crates/v/histdb-rs.svg)](https://crates.io/crates/histdb-rs)
 
 Better history management for zsh. Based on ideas from
@@ -52,7 +52,7 @@ histdb-rs stop
 In the future `CTRL+C` should also work.
 
 You can also use the systemd unit file in
-[`histdb-rs.service`](histdb-rs.service) which you can copy to
+[`histdb-rs.service`](resources/histdb-rs.service) which you can copy to
 `"$HOME/.config/systemd` and enable/start with the following:
 
 ```
