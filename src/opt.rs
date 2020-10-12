@@ -185,7 +185,7 @@ struct DefaultArgs {
     #[structopt(short, long)]
     command: Option<String>,
 
-    /// Only print entries beginning with the given command
+    /// Only print entries containing the given regex
     #[structopt(short = "t", long = "text")]
     command_text: Option<Regex>,
 
