@@ -14,6 +14,8 @@ function histdb-rs-precmd() {
   histdb-rs precmd
 }
 
+autoload -Uz add-zsh-hook
+
 add-zsh-hook zshaddhistory histdb-rs-zshaddhistory
 add-zsh-hook precmd histdb-rs-precmd
 
