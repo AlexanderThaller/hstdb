@@ -339,11 +339,9 @@ impl Opt {
                 SubCommand::ZSHAddHistory(o) => {
                     run::zsh_add_history(o.command, o.socket_path.socket_path)
                 }
-                SubCommand::Server(o) => run::server(
-                    o.cache_path,
-                    &o.socket_path.socket_path,
-                    o.data_dir.data_dir,
-                ),
+                SubCommand::Server(o) => {
+                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
+                }
                 SubCommand::Stop(o) => run::stop(o.socket_path),
                 SubCommand::Disable(o) => run::disable(o.socket_path),
                 SubCommand::Enable(o) => run::enable(o.socket_path),

@@ -44,7 +44,10 @@ pub enum Error {
     Message(#[from] message::Error),
 
     #[error("{0}")]
-    Server(#[from] server::Error),
+    ServerBuilder(#[from] server::BuilderError),
+
+    #[error("{0}")]
+    Server(#[from] server::ServerError),
 
     #[error("{0}")]
     Store(#[from] store::Error),
@@ -280,10 +283,10 @@ pub fn zsh_add_history(command: String, socket_path: PathBuf) -> Result<(), Erro
     Ok(())
 }
 
-pub fn server(cache_path: PathBuf, socket_path: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
-    let server = server::new(cache_path, data_dir)?;
-
-    server.start(socket_path)?;
+pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+    let server = server::builder(cache_dir, data_dir, socket)
+        .build()?
+        .run()?;
 
     Ok(())
 }

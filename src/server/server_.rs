@@ -8,6 +8,10 @@ use crate::{
     store,
     store::Store,
 };
+use flume::{
+    Receiver,
+    Sender,
+};
 use log::{
     info,
     warn,
@@ -23,6 +27,14 @@ use std::{
     },
     os::unix::net::UnixDatagram,
     path::PathBuf,
+    sync::{
+        atomic::{
+            AtomicBool,
+            Ordering,
+        },
+        Arc,
+    },
+    thread,
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -61,9 +73,6 @@ pub enum Error {
     #[error("can not receive message from socket: {0}")]
     ReceiveFromSocket(std::io::Error),
 
-    #[error("can not deserialize message: {0}")]
-    DeserializeMessage(bincode::Error),
-
     #[error("no parent directory for socket path")]
     NoSocketPathParent,
 
@@ -72,6 +81,12 @@ pub enum Error {
 
     #[error("not recording because session {0} is disabled")]
     DisabledSession(Uuid),
+
+    #[error("can not send received data to processing: {0}")]
+    SendBuffer(flume::SendError<Vec<u8>>),
+
+    #[error("can not setup ctrlc handler: {0}")]
+    SetupCtrlHandler(ctrlc::Error),
 }
 
 #[derive(Debug)]
@@ -137,18 +152,21 @@ impl Server {
         info!("starting server listening on path {:?}", socket_path);
         let socket = UnixDatagram::bind(&socket_path).map_err(Error::BindSocket)?;
 
-        loop {
-            match Self::receive(&socket) {
-                Err(err) => warn!("{}", err),
-                Ok(message) => match self.process(message) {
-                    Ok(state) => {
-                        if state.is_stop() {
-                            break;
-                        }
-                    }
+        let (data_sender, data_receiver) = flume::unbounded();
+        let (signal_sender, signal_receiver) = flume::unbounded();
+        let stopping = Arc::new(AtomicBool::new(false));
 
-                    Err(err) => warn!("error encountered: {}", err),
-                },
+        Self::ctrl_c_watcher(signal_sender)?;
+        Self::signal_watcher(signal_receiver, Arc::clone(&stopping));
+        Self::start_processor(data_receiver);
+
+        loop {
+            if stopping.load(Ordering::SeqCst) {
+                break;
+            }
+
+            if let Err(err) = Self::receive(&socket, &data_sender) {
+                warn!("{}", err)
             }
         }
 
@@ -162,6 +180,29 @@ impl Server {
         Ok(self)
     }
 
+    fn signal_watcher(signal_receiver: Receiver<RunState>, stopping: Arc<AtomicBool>) {
+        thread::spawn(move || loop {
+            match signal_receiver.recv() {
+                Ok(signal) => match signal {
+                    RunState::Stop => stopping.store(true, Ordering::SeqCst),
+                    RunState::Continue => continue,
+                },
+                Err(err) => warn!("{}", err),
+            }
+        });
+    }
+
+    fn ctrl_c_watcher(signal_sender: Sender<RunState>) -> Result<(), Error> {
+        ctrlc::set_handler(move || {
+            if let Err(err) = signal_sender.send(RunState::Stop) {
+                warn!("{}", err)
+            }
+        })
+        .map_err(Error::SetupCtrlHandler)?;
+
+        Ok(())
+    }
+
     fn process(&mut self, message: Message) -> Result<RunState, Error> {
         match message {
             Message::Stop => Ok(RunState::Stop),
@@ -173,16 +214,31 @@ impl Server {
         }
     }
 
-    fn receive(socket: &UnixDatagram) -> Result<Message, Error> {
+    fn receive(socket: &UnixDatagram, data_sender: &Sender<Vec<u8>>) -> Result<(), Error> {
         let mut buffer = [0_u8; BUFFER_SIZE];
         let (written, _) = socket
             .recv_from(&mut buffer)
             .map_err(Error::ReceiveFromSocket)?;
 
-        let message =
-            bincode::deserialize(&buffer[0..written]).map_err(Error::DeserializeMessage)?;
+        data_sender
+            .send(buffer[0..written].to_vec())
+            .map_err(Error::SendBuffer)?;
 
-        Ok(message)
+        Ok(())
+    }
+
+    fn start_processor(data_receiver: Receiver<Vec<u8>>) -> Result<(), Error> {
+        loop {
+            let buffer = match data_receiver.recv() {
+                Ok(b) => b,
+                Err(err) => {
+                    warn!("{}", err);
+                    continue;
+                }
+            };
+
+            let message = bincode::deserialize(&buffer).map_err(Error::DeserializeMessage)?;
+        }
     }
 
     fn command_start(&mut self, start: CommandStart) -> Result<RunState, Error> {

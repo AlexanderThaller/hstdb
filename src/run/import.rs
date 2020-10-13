@@ -30,7 +30,7 @@ pub enum Error {
     Message(#[from] message::Error),
 
     #[error("{0}")]
-    Server(#[from] server::Error),
+    Server(#[from] server::ServerError),
 
     #[error("{0}")]
     Store(#[from] store::Error),
