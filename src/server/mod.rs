@@ -207,6 +207,14 @@ impl Server {
                 }
             }
 
+            while !data_receiver.is_empty() {
+                if let Err(err) =
+                    Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
+                {
+                    warn!("{}", err)
+                }
+            }
+
             drop(wait_group)
         });
 
