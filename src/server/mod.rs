@@ -23,7 +23,10 @@ use flume::{
     Receiver,
     Sender,
 };
-use log::warn;
+use log::{
+    info,
+    warn,
+};
 use std::{
     os::unix::net::UnixDatagram,
     path::{
@@ -127,6 +130,8 @@ impl Server {
         )?;
 
         Self::ctrl_c_watcher(self.stopping, self.socket_path.clone())?;
+
+        info!("listening on {:?}", self.socket_path);
 
         self.wait_group.wait();
 
