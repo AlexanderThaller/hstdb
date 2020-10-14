@@ -53,7 +53,7 @@ pub enum Error {
     InvalidResult(std::num::ParseIntError),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommandStart {
     pub command: String,
     pub pwd: PathBuf,
@@ -89,7 +89,7 @@ impl CommandStart {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommandFinished {
     pub session_id: Uuid,
     pub time_stamp: DateTime<Utc>,

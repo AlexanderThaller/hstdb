@@ -272,6 +272,10 @@ enum SubCommand {
     /// Print out shell functions needed by histdb and set current session id
     #[structopt(name = "init")]
     Init,
+
+    /// Run benchmark against server
+    #[structopt(name = "bench")]
+    Bench(Socket),
 }
 
 #[derive(StructOpt, Debug)]
@@ -349,6 +353,7 @@ impl Opt {
                     }
                 },
                 SubCommand::Init => run::init(),
+                SubCommand::Bench(s) => run::bench(s.socket_path),
             },
         )
     }

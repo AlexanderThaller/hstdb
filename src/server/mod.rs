@@ -197,7 +197,7 @@ impl Server {
         store: Store,
         socket_path: PathBuf,
     ) -> Result<Sender<Vec<u8>>, Error> {
-        let (data_sender, data_receiver) = flume::unbounded();
+        let (data_sender, data_receiver) = flume::bounded(10_000);
 
         thread::spawn(move || {
             loop {

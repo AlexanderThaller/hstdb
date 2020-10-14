@@ -331,6 +331,37 @@ pub fn init() -> Result<(), Error> {
     Ok(())
 }
 
+pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
+    let client = client::new(socket_path);
+
+    let mut start = CommandStart {
+        command: "test".to_string(),
+        hostname: "test_hostname".to_string(),
+        pwd: PathBuf::from("/tmp/test_pwd"),
+        session_id: Uuid::new_v4(),
+        time_stamp: Utc::now(),
+        user: "test_user".to_string(),
+    };
+
+    let mut finished = CommandFinished {
+        session_id: start.session_id.clone(),
+        time_stamp: Utc::now(),
+        result: 0,
+    };
+
+    loop {
+        start.time_stamp = Utc::now();
+        let message = Message::CommandStart(start.clone());
+
+        client.send(&message).expect("ignore");
+
+        finished.time_stamp = Utc::now();
+        let message = Message::CommandFinished(finished.clone());
+
+        client.send(&message).expect("ignore");
+    }
+}
+
 fn format_timestamp(timestamp: DateTime<Utc>) -> String {
     let today = Local::now().date();
     let local = timestamp.with_timezone(&chrono::offset::Local);
