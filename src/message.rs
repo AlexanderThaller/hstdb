@@ -24,8 +24,6 @@ pub enum Message {
     CommandStart(CommandStart),
 
     CommandFinished(CommandFinished),
-
-    Running,
 }
 
 #[derive(Error, Debug)]

@@ -284,7 +284,7 @@ pub fn zsh_add_history(command: String, socket_path: PathBuf) -> Result<(), Erro
 }
 
 pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
-    let server = server::builder(cache_dir, data_dir, socket)
+    server::builder(cache_dir, data_dir, socket)
         .build()?
         .run()?;
 
@@ -321,12 +321,6 @@ pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
 
 pub fn session_id() -> Result<(), Error> {
     println!("{}", Uuid::new_v4());
-
-    Ok(())
-}
-
-pub fn running(socket_path: PathBuf) -> Result<(), Error> {
-    client::new(socket_path).send(&Message::Running)?;
 
     Ok(())
 }

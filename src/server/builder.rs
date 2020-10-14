@@ -1,4 +1,7 @@
-use super::Server;
+use super::{
+    db,
+    Server,
+};
 use crate::store;
 use crossbeam_utils::sync::WaitGroup;
 use std::{
@@ -13,9 +16,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("can not open entries database: {0}")]
-    OpenEntriesDb(sled::Error),
-
     #[error("no parent directory for socket path")]
     NoSocketPathParent,
 
@@ -24,6 +24,9 @@ pub enum Error {
 
     #[error("can not bind to socket: {0}")]
     BindSocket(std::io::Error),
+
+    #[error("{0}")]
+    Db(#[from] db::Error),
 }
 
 pub struct Builder {
@@ -34,7 +37,7 @@ pub struct Builder {
 
 impl Builder {
     pub fn build(self) -> Result<Server, Error> {
-        let entries = sled::open(self.cache_dir.join("entries")).map_err(Error::OpenEntriesDb)?;
+        let db = db::new(self.cache_dir)?;
 
         let socket_path_parent = self.socket.parent().ok_or(Error::NoSocketPathParent)?;
         std::fs::create_dir_all(socket_path_parent).map_err(Error::CreateSocketPathParent)?;
@@ -46,7 +49,7 @@ impl Builder {
         let wait_group = WaitGroup::new();
 
         Ok(Server {
-            entries,
+            db,
             socket,
             socket_path: self.socket,
             store,

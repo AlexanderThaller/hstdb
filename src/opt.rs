@@ -101,9 +101,6 @@ fn default_socket_path() -> Result<String, Error> {
 #[derive(StructOpt, Debug)]
 struct ZSHAddHistory {
     #[structopt(flatten)]
-    data_dir: DataDir,
-
-    #[structopt(flatten)]
     socket_path: Socket,
 
     /// Command to add to history
@@ -268,10 +265,6 @@ enum SubCommand {
     #[structopt(name = "session_id")]
     SessionID,
 
-    /// Tell server to print currently running command
-    #[structopt(name = "running")]
-    Running(Socket),
-
     /// Import entries from existing histdb sqlite or zsh histfile
     #[structopt(name = "import")]
     Import(Import),
@@ -347,7 +340,6 @@ impl Opt {
                 SubCommand::Enable(o) => run::enable(o.socket_path),
                 SubCommand::PreCmd(o) => run::precmd(o.socket_path),
                 SubCommand::SessionID => run::session_id(),
-                SubCommand::Running(o) => run::running(o.socket_path),
                 SubCommand::Import(s) => match s {
                     Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
                         .map_err(run::Error::Import),
