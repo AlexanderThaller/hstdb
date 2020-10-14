@@ -62,7 +62,7 @@ fn default_data_dir() -> Result<String, Error> {
 
 fn default_cache_path() -> Result<String, Error> {
     let project_dir = project_dir()?;
-    let cache_path = project_dir.cache_dir().join("server.json");
+    let cache_path = project_dir.cache_dir().join("server");
 
     Ok(cache_path.to_string_lossy().to_string())
 }
