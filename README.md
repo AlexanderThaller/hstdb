@@ -43,13 +43,13 @@ After that you need to start the server. This might change in the future.
 histdb-rs server
 ```
 
-To stop the server you have to run
+To stop the server you can run
 
 ```
 histdb-rs stop
 ```
 
-In the future `CTRL+C` should also work.
+Or send SIGTERM/SIGINT (Ctrl+C) to stop the server.
 
 You can also use the systemd unit file in
 [`histdb-rs.service`](resources/histdb-rs.service) which you can copy to
