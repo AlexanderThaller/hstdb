@@ -231,8 +231,6 @@ impl Server {
         let data = data_receiver.recv().map_err(Error::ReceiveData)?;
         let message = bincode::deserialize(&data).map_err(Error::DeserializeMessage)?;
 
-        dbg!(&message);
-
         match message {
             Message::Stop => {
                 stopping.store(true, Ordering::SeqCst);
