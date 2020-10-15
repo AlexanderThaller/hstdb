@@ -344,7 +344,7 @@ pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
     };
 
     let mut finished = CommandFinished {
-        session_id: start.session_id.clone(),
+        session_id: start.session_id,
         time_stamp: Utc::now(),
         result: 0,
     };
