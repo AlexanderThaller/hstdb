@@ -141,6 +141,9 @@ OPTIONS:
 
 
 SUBCOMMANDS:
+    bench
+            Run benchmark against server
+
     disable
             Disable history recording for current session
 
@@ -151,16 +154,13 @@ SUBCOMMANDS:
             Prints this message or the help of the given subcommand(s)
 
     import
-            Import entries from existing histdb sqlite file
+            Import entries from existing histdb sqlite or zsh histfile
 
     init
             Print out shell functions needed by histdb and set current session id
 
     precmd
             Finish command for current session
-
-    running
-            Tell server to print currently running command
 
     server
             Start the server
