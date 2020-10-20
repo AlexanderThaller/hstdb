@@ -77,9 +77,9 @@ impl Filter {
         let entries = entries
             .into_iter()
             .filter(|entry| {
-                self.command
-                    .as_ref()
-                    .map_or(true, |command| entry.command.starts_with(command))
+                self.command.as_ref().map_or(true, |command| {
+                    Self::filter_command(&entry.command, command)
+                })
             })
             .filter(|entry| {
                 self.directory.as_ref().map_or(true, |dir| {
@@ -103,5 +103,37 @@ impl Filter {
             .collect();
 
         Ok(entries)
+    }
+
+    fn filter_command(entry_command: &str, command: &str) -> bool {
+        entry_command
+            .split('|')
+            .map(|pipe_command| {
+                pipe_command
+                    .split_whitespace()
+                    .next()
+                    .map_or(false, |entry_command| entry_command == command)
+            })
+            .any(|has_command| has_command)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Filter;
+
+    #[test]
+    fn filter_command() {
+        let cases = vec![
+            ("tr -d ' '", true),
+            ("echo 'tr'", false),
+            ("echo 'test test' | tr -d ' '", true),
+            ("echo 'test test' | echo tr -d ' '", false),
+        ];
+        let command = "tr";
+
+        for case in cases {
+            assert_eq!(Filter::filter_command(case.0, command), case.1)
+        }
     }
 }
