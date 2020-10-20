@@ -129,6 +129,7 @@ mod test {
             ("echo 'tr'", false),
             ("echo 'test test' | tr -d ' '", true),
             ("echo 'test test' | echo tr -d ' '", false),
+            ("echo 'test test' | tr -d ' ' | tr -d 't'", true),
         ];
         let command = "tr";
 
