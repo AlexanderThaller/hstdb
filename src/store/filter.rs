@@ -133,10 +133,10 @@ mod test {
             ("", false),
             ("tr", true),
         ];
-        let command = "tr";
+        let check_command = "tr";
 
-        for case in cases {
-            assert_eq!(Filter::filter_command(case.0, command), case.1)
-        }
+        cases.into_iter().for_each(|(entry_command, result)| {
+            assert_eq!(Filter::filter_command(entry_command, check_command), result)
+        });
     }
 }
