@@ -25,19 +25,7 @@ Has pretty much the same feature set as zsh-histdb:
 
 ## Installation
 
-Currently you need nightly to build histdb-rs. We are using the strip
-functionality to decrease the binary size automatically.
-
-```
-cargo +nightly install --path .
-```
-
-Or install it from crates.io
-```
-cargo +nightly install histdb-rs
-```
-
-After that you need to start the server. This might change in the future.
+You need to start the server. This might change in the future.
 
 ```
 histdb-rs server
