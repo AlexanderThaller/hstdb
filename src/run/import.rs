@@ -8,15 +8,19 @@ use chrono::{
     DateTime,
     Utc,
 };
-use log::{
-    info,
-    warn,
-};
+#[cfg(feature = "histdb-import")]
+use log::info;
+use log::warn;
+#[cfg(feature = "histdb-import")]
 use rusqlite::params;
+#[cfg(feature = "histdb-import")]
+use std::convert::TryInto;
 use std::{
-    convert::TryInto,
     io::BufRead,
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -38,18 +42,23 @@ pub enum Error {
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not open sqlite database: {0}")]
     OpenSqliteDatabase(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not prepare sqlite query to get entries: {0}")]
     PrepareSqliteQuery(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not convert sqlite row: {0}")]
     ConvertSqliteRow(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not collect entries from sqlite query: {0}")]
     CollectEntries(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not convert exit status from sqlite: {0}")]
     ConvertExitStatus(std::num::TryFromIntError),
 
@@ -84,7 +93,8 @@ pub enum Error {
     GetUser(std::env::VarError),
 }
 
-pub fn histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+#[cfg(feature = "histdb-import")]
+pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -186,7 +196,7 @@ pub fn histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,
@@ -317,11 +327,11 @@ pub fn histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
             time_finished,
             time_start,
             hostname,
+            command,
             pwd,
             result,
             session_id,
             user,
-            command,
         };
 
         store.add_entry(&entry)?;

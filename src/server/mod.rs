@@ -120,14 +120,14 @@ impl Server {
             self.db,
             self.store,
             self.socket_path.clone(),
-        )?;
+        );
 
         Self::start_receiver(
             Arc::clone(&self.stopping),
             self.wait_group.clone(),
             self.socket,
             data_sender,
-        )?;
+        );
 
         Self::ctrl_c_watcher(self.stopping, self.socket_path.clone())?;
 
@@ -159,7 +159,7 @@ impl Server {
         wait_group: WaitGroup,
         socket: UnixDatagram,
         data_sender: Sender<Vec<u8>>,
-    ) -> Result<(), Error> {
+    ) {
         thread::spawn(move || {
             loop {
                 if stopping.load(Ordering::SeqCst) {
@@ -173,8 +173,6 @@ impl Server {
 
             drop(wait_group)
         });
-
-        Ok(())
     }
 
     fn receive(socket: &UnixDatagram, data_sender: &Sender<Vec<u8>>) -> Result<(), Error> {
@@ -196,7 +194,7 @@ impl Server {
         db: Db,
         store: Store,
         socket_path: PathBuf,
-    ) -> Result<Sender<Vec<u8>>, Error> {
+    ) -> Sender<Vec<u8>> {
         let (data_sender, data_receiver) = flume::bounded(10_000);
 
         thread::spawn(move || {
@@ -223,7 +221,7 @@ impl Server {
             drop(wait_group)
         });
 
-        Ok(data_sender)
+        data_sender
     }
 
     fn process(

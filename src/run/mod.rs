@@ -30,7 +30,10 @@ use comfy_table::{
 use std::{
     convert::TryInto,
     io::Write,
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -382,20 +385,20 @@ fn format_uuid(uuid: uuid::Uuid) -> String {
         .collect()
 }
 
-fn format_pwd(pwd: &PathBuf) -> Result<String, Error> {
+fn format_pwd(pwd: impl AsRef<Path>) -> Result<String, Error> {
     let base_dirs = directories::BaseDirs::new().ok_or(Error::GetBaseDirectories)?;
     let home = base_dirs.home_dir();
 
-    if pwd.starts_with(home) {
+    if pwd.as_ref().starts_with(home) {
         let mut without_home = PathBuf::from("~");
 
-        let pwd_components = pwd.components().skip(3);
+        let pwd_components = pwd.as_ref().components().skip(3);
 
         pwd_components.for_each(|component| without_home.push(component));
 
         Ok(without_home.to_string_lossy().to_string())
     } else {
-        Ok(pwd.to_string_lossy().to_string())
+        Ok(pwd.as_ref().to_string_lossy().to_string())
     }
 }
 
