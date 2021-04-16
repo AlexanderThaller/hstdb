@@ -457,7 +457,6 @@ dependencies = [
  "regex",
  "rusqlite",
  "serde",
- "serde_json",
  "sled",
  "structopt",
  "thiserror",
