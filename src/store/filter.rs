@@ -74,7 +74,7 @@ impl Filter {
     }
 
     pub fn filter_entries(&self, entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
-        let entries = entries
+        let filtered: Vec<Entry> = entries
             .into_iter()
             .filter(|entry| {
                 self.command.as_ref().map_or(true, |command| {
@@ -95,14 +95,15 @@ impl Filter {
                     .as_ref()
                     .map_or(true, |regex| regex.is_match(&entry.command))
             })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .take(self.count)
-            .rev()
             .collect();
 
-        Ok(entries)
+        if self.count > 0 {
+            let f = filtered.into_iter().rev().take(self.count).rev().collect();
+
+            Ok(f)
+        } else {
+            Ok(filtered)
+        }
     }
 
     fn filter_command(entry_command: &str, command: &str) -> bool {
