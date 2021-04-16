@@ -17,7 +17,10 @@ use rusqlite::params;
 use std::{
     convert::TryInto,
     io::BufRead,
-    path::PathBuf,
+    path::{
+        Path,
+        PathBuf,
+    },
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -90,7 +93,7 @@ pub enum Error {
 }
 
 #[cfg(feature = "histdb-import")]
-pub fn histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -192,7 +195,7 @@ pub fn histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
+pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,
@@ -323,11 +326,11 @@ pub fn histfile(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
             time_finished,
             time_start,
             hostname,
+            command,
             pwd,
             result,
             session_id,
             user,
-            command,
         };
 
         store.add_entry(&entry)?;

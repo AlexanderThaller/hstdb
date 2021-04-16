@@ -65,7 +65,7 @@ impl Store {
             .append(true)
             .create(true)
             .open(&file_path)
-            .map_err(|err| Error::OpenLogFile(file_path.to_path_buf(), err))?;
+            .map_err(|err| Error::OpenLogFile(file_path.clone(), err))?;
 
         let mut writer = builder.from_writer(index_file);
 
