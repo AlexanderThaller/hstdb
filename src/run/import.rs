@@ -12,6 +12,7 @@ use log::{
     info,
     warn,
 };
+#[cfg(feature = "histdb-import")]
 use rusqlite::params;
 use std::{
     convert::TryInto,
@@ -38,15 +39,19 @@ pub enum Error {
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not open sqlite database: {0}")]
     OpenSqliteDatabase(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not prepare sqlite query to get entries: {0}")]
     PrepareSqliteQuery(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not convert sqlite row: {0}")]
     ConvertSqliteRow(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not collect entries from sqlite query: {0}")]
     CollectEntries(rusqlite::Error),
 
@@ -84,6 +89,7 @@ pub enum Error {
     GetUser(std::env::VarError),
 }
 
+#[cfg(feature = "histdb-import")]
 pub fn histdb(import_file: &PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {

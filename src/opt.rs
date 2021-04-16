@@ -123,6 +123,7 @@ struct Server {
 
 #[derive(StructOpt, Debug)]
 enum Import {
+    #[cfg(feature = "histdb-import")]
     /// Import entries from existing histdb sqlite file
     Histdb(ImportHistdb),
 
@@ -345,6 +346,7 @@ impl Opt {
                 SubCommand::PreCmd(o) => run::precmd(o.socket_path),
                 SubCommand::SessionID => run::session_id(),
                 SubCommand::Import(s) => match s {
+                    #[cfg(feature = "histdb-import")]
                     Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
                         .map_err(run::Error::Import),
                     Import::Histfile(o) => {

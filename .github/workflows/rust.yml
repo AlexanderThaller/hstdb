@@ -30,3 +30,9 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy --verbose
+
+      - name: Run tests with default features disabled
+        run: cargo test --no-default-features --verbose
+
+      - name: Run clippy with default features disabled
+        run: cargo clippy --no-default-features --verbose
