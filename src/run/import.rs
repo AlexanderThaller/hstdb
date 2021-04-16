@@ -8,14 +8,14 @@ use chrono::{
     DateTime,
     Utc,
 };
-use log::{
-    info,
-    warn,
-};
+#[cfg(feature = "histdb-import")]
+use log::info;
+use log::warn;
 #[cfg(feature = "histdb-import")]
 use rusqlite::params;
+#[cfg(feature = "histdb-import")]
+use std::convert::TryInto;
 use std::{
-    convert::TryInto,
     io::BufRead,
     path::{
         Path,
@@ -58,6 +58,7 @@ pub enum Error {
     #[error("can not collect entries from sqlite query: {0}")]
     CollectEntries(rusqlite::Error),
 
+    #[cfg(feature = "histdb-import")]
     #[error("can not convert exit status from sqlite: {0}")]
     ConvertExitStatus(std::num::TryFromIntError),
 
