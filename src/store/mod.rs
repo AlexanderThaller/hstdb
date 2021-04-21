@@ -49,7 +49,10 @@ impl Store {
         let hostname = &entry.hostname;
 
         let folder_path = self.data_dir.as_path();
-        let file_path = folder_path.join(hostname).with_extension("csv");
+        // Can't use .with_extension here as it will not work properly with hostnames
+        // that contain dots. See test::dot_filename_with_extension for an
+        // example.
+        let file_path = folder_path.join(format!("{}.csv", hostname));
 
         fs::create_dir_all(&folder_path)
             .map_err(|err| Error::CreateLogFolder(folder_path.to_path_buf(), err))?;
@@ -130,5 +133,21 @@ impl Store {
         csv_reader
             .deserialize()
             .collect::<Result<Vec<Entry>, csv::Error>>()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn dot_filename_with_extension() {
+        let folder_path = std::path::PathBuf::from("/tmp");
+        let hostname = "test.test.test";
+        let expected = std::path::PathBuf::from(format!("/tmp/{}.csv", hostname));
+
+        let bad = folder_path.join(hostname).with_extension("csv");
+        let good = folder_path.join(format!("{}.csv", hostname));
+
+        assert_ne!(bad, expected);
+        assert_eq!(good, expected);
     }
 }
