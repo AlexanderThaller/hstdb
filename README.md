@@ -263,10 +263,14 @@ information will be stored:
 
 * `time_finished` will be parsed from the histfile
 * `result` (exit code) will be parsed from the histfile
-* `command` will be parse from the histfile
+* `command` will be parsed from the histfile
 * `time_start` will be copied over from `time_finished`
 * `hostname` will use the current machines hostname
 * `pwd` will be set to the current users home directory
 * `session_id` will be generated and used for all commands imported from the
 histfile
 * `user` will use the current user thats running the import
+
+## Alternatives
+
+* https://github.com/ellie/atuin
