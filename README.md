@@ -271,6 +271,11 @@ information will be stored:
 histfile
 * `user` will use the current user thats running the import
 
+## Contribution
+
+I'm happy with how the tool works for me so I won't expand it further but
+contributions for features and fixes are always welcome!
+
 ## Alternatives
 
 * https://github.com/ellie/atuin
