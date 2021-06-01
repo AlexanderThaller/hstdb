@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0 [2021-06-01]
+* No big changes just updated the dependencies.
+* Automatic binaries created through github actions.
+
 ## 0.1.0
 
 ### Changed
