@@ -31,11 +31,19 @@ You can either install the right binary from the releases page or run:
 cargo install histdb-rs
 ```
 
-After that you need to start the server:
+## Archlinux
+
+Install from the aur: https://aur.archlinux.org/packages/histdb-rs/
+
+## First Start
+
+After you installed histdb-rs you need to start the server:
 
 ```
 histdb-rs server
 ```
+
+By default the server will run in the foreground.
 
 To stop the server you can run the following:
 
