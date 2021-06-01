@@ -25,13 +25,19 @@ Has pretty much the same feature set as zsh-histdb:
 
 ## Installation
 
-You need to start the server. This might change in the future.
+You can either install the right binary from the releases page or run:
+
+```
+cargo install histdb-rs
+```
+
+After that you need to start the server:
 
 ```
 histdb-rs server
 ```
 
-To stop the server you can run
+To stop the server you can run the following:
 
 ```
 histdb-rs stop
@@ -64,8 +70,7 @@ shell.
 Help output of default command:
 
 ```
-» histdb -h
-histdb-rs 0.1.0
+histdb-rs 1.0.0
 
 USAGE:
     histdb-rs [FLAGS] [OPTIONS] [SUBCOMMAND]
