@@ -6,12 +6,9 @@ on:
     types: [published]
 
 jobs:
-  linux-x86_64:
+  linux-x86_64-musl:
     runs-on: ubuntu-latest
     steps:
-      - name: Install sqlite3
-        run: sudo apt-get install sqlite3
-
       - uses: actions/checkout@v1
 
       - uses: actions-rs/toolchain@v1
@@ -24,7 +21,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target x86_64-unknown-linux-musl
+          # --no-default-features as sqlite3 doesn't compile with musl
+          args: --release --target x86_64-unknown-linux-musl --no-default-features
           use-cross: true
 
       - name: Optimize and package binary
@@ -39,8 +37,42 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          asset_name: histdb-rs-${{ github.event.release.tag-name }}-linux-x86_64.tar.gz
+          asset_name: histdb-rs-${{ github.event.release.tag-name }}-linux-x86_64-musl.tar.gz
           asset_path: target/x86_64-unknown-linux-musl/release/histdb-rs.tar.gz
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_content_type: application/octet-stream
+
+  linux-x86_64-gnu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          default: true
+
+      - name: Build binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Optimize and package binary
+        run: |
+          cd target/release
+          strip histdb-rs
+          chmod +x histdb-rs
+          tar -c histdb-rs | gzip > histdb-rs.tar.gz
+
+      - name: Upload binary
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          asset_name: histdb-rs-${{ github.event.release.tag-name }}-linux-x86_64-gnu.tar.gz
+          asset_path: target/release/histdb-rs.tar.gz
           upload_url: ${{ github.event.release.upload_url }}
           asset_content_type: application/octet-stream
 
