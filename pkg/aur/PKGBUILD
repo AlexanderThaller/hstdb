@@ -1,0 +1,27 @@
+# Maintainer: Alexander Thaller <aur+histdb-rs@alexander.thaller.ws>
+pkgname=histdb-rs
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Better history management for zsh."
+arch=('x86_64')
+url="https://github.com/AlexanderThaller/histdb-rs"
+license=('MIT')
+depends=('sqlite')
+makedepends=('cargo')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/AlexanderThaller/$pkgname/archive/v$pkgver.tar.gz")
+sha512sums=('c9b43daf0ceb81831bd76d835bdc7b905b2c23dec609d614e497149d014f923c9f0103f59c2b521ea54e01f5121a0e8f48624e5ac643566a63dff4511a2c2dd2')
+
+build() {
+  cd "$pkgname-$pkgver"
+  RUSTUP_TOOLCHAIN=stable cargo build --release --locked --all-features --target-dir=target
+}
+
+ check() {
+  cd "$pkgname-$pkgver"
+  RUSTUP_TOOLCHAIN=stable cargo test --release --locked --target-dir=target
+ }
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm 755 target/release/${pkgname} -t "${pkgdir}/usr/bin"
+}
