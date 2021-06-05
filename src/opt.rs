@@ -154,7 +154,7 @@ struct ImportHistfile {
 #[derive(StructOpt, Debug)]
 struct Socket {
     /// Path to the socket for communication with the server
-    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_socket_path)))]
+    #[structopt(short, long, env = "HISTDBRS_SOCKET_PATH", default_value = into_str!(get_default_or_fail(default_socket_path)))]
     socket_path: PathBuf,
 }
 
