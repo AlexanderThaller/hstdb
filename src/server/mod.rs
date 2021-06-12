@@ -5,7 +5,6 @@ pub use builder::{
     Builder,
     Error as BuilderError,
 };
-pub use Error as ServerError;
 
 use crate::{
     client,
@@ -167,11 +166,11 @@ impl Server {
                 }
 
                 if let Err(err) = Self::receive(&socket, &data_sender) {
-                    warn!("{}", err)
+                    warn!("{}", err);
                 }
             }
 
-            drop(wait_group)
+            drop(wait_group);
         });
     }
 
@@ -206,7 +205,7 @@ impl Server {
                 if let Err(err) =
                     Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
                 {
-                    warn!("{}", err)
+                    warn!("{}", err);
                 }
             }
 
@@ -214,11 +213,11 @@ impl Server {
                 if let Err(err) =
                     Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
                 {
-                    warn!("{}", err)
+                    warn!("{}", err);
                 }
             }
 
-            drop(wait_group)
+            drop(wait_group);
         });
 
         data_sender

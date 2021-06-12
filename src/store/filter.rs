@@ -74,7 +74,7 @@ impl Filter {
         }
     }
 
-    pub fn filter_entries(&self, entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
+    pub fn filter_entries(&self, entries: Vec<Entry>) -> Vec<Entry> {
         let filtered: Vec<Entry> = entries
             .into_iter()
             .filter(|entry| {
@@ -104,11 +104,9 @@ impl Filter {
             .collect();
 
         if self.count > 0 {
-            let f = filtered.into_iter().rev().take(self.count).rev().collect();
-
-            Ok(f)
+            filtered.into_iter().rev().take(self.count).rev().collect()
         } else {
-            Ok(filtered)
+            filtered
         }
     }
 

@@ -81,7 +81,7 @@ impl Db {
 
         self.disabled_sessions.insert(key, value)?;
 
-        self.remove_entry(&uuid)?;
+        self.remove_entry(uuid)?;
 
         Ok(())
     }
@@ -101,7 +101,7 @@ impl Db {
     }
 
     fn deserialize_entry(data: &sled::IVec) -> Result<CommandStart, Error> {
-        let entry = bincode::deserialize(&data).map_err(Error::DeserializeEntry)?;
+        let entry = bincode::deserialize(data).map_err(Error::DeserializeEntry)?;
 
         Ok(entry)
     }

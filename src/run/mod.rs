@@ -50,7 +50,7 @@ pub enum Error {
     ServerBuilder(#[from] server::BuilderError),
 
     #[error("{0}")]
-    Server(#[from] server::ServerError),
+    Server(#[from] server::Error),
 
     #[error("{0}")]
     Store(#[from] store::Error),
@@ -149,15 +149,15 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     let mut header = vec!["tmn"];
 
     if display.host.is_show() {
-        header.push("host")
+        header.push("host");
     };
 
     if display.duration.is_show() {
-        header.push("duration")
+        header.push("duration");
     };
 
     if display.status.is_show() {
-        header.push("res")
+        header.push("res");
     };
 
     if display.session.is_show() {
@@ -184,15 +184,15 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
         let mut row = vec![format_timestamp(entry.time_finished)];
 
         if display.host.is_show() {
-            row.push(entry.hostname)
+            row.push(entry.hostname);
         }
 
         if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?)
+            row.push(format_duration(entry.time_start, entry.time_finished)?);
         }
 
         if display.status.is_show() {
-            row.push(format!("{}", entry.result))
+            row.push(format!("{}", entry.result));
         }
 
         if display.session.is_show() {
@@ -221,15 +221,15 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
     let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];
 
     if display.host.is_show() {
-        header.push(Cell::new("host").add_attribute(Attribute::Bold))
+        header.push(Cell::new("host").add_attribute(Attribute::Bold));
     };
 
     if display.duration.is_show() {
-        header.push(Cell::new("duration").add_attribute(Attribute::Bold))
+        header.push(Cell::new("duration").add_attribute(Attribute::Bold));
     };
 
     if display.status.is_show() {
-        header.push(Cell::new("res").add_attribute(Attribute::Bold))
+        header.push(Cell::new("res").add_attribute(Attribute::Bold));
     };
 
     if display.session.is_show() {
@@ -250,15 +250,15 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
         let mut row = vec![format_timestamp(entry.time_finished)];
 
         if display.host.is_show() {
-            row.push(entry.hostname)
+            row.push(entry.hostname);
         }
 
         if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?)
+            row.push(format_duration(entry.time_start, entry.time_finished)?);
         }
 
         if display.status.is_show() {
-            row.push(format!("{}", entry.result))
+            row.push(format!("{}", entry.result));
         }
 
         if display.session.is_show() {
@@ -322,16 +322,12 @@ pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn session_id() -> Result<(), Error> {
+pub fn session_id() {
     println!("{}", Uuid::new_v4());
-
-    Ok(())
 }
 
-pub fn init() -> Result<(), Error> {
+pub fn init() {
     println!("{}", include_str!("../../resources/init.zsh"));
-
-    Ok(())
 }
 
 pub fn bench(socket_path: PathBuf) -> Result<(), Error> {

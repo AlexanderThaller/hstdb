@@ -112,7 +112,7 @@ impl Store {
 
         entries.sort();
 
-        let entries = filter.filter_entries(entries)?;
+        let entries = filter.filter_entries(entries);
 
         Ok(entries)
     }

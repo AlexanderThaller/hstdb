@@ -24,6 +24,6 @@ fn main() {
     let opt = Opt::from_args();
 
     if let Err(err) = opt.run() {
-        error!("{}", err)
+        error!("{}", err);
     }
 }
