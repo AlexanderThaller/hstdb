@@ -203,6 +203,10 @@ struct DefaultArgs {
     #[structopt(long, conflicts_with = "all_hosts")]
     hostname: Option<String>,
 
+    /// Filter by given session
+    #[structopt(long)]
+    session: Option<Regex>,
+
     /// Print all hosts
     #[structopt(long, conflicts_with = "hostname")]
     all_hosts: bool,
@@ -301,6 +305,7 @@ impl Opt {
         let data_dir = self.default_args.data_dir.data_dir;
         let entries_count = self.default_args.entries_count;
         let command = self.default_args.command;
+        let session_filter = self.default_args.session;
         let no_subdirs = self.default_args.no_subdirs;
         let command_text = self.default_args.command_text;
 
@@ -318,7 +323,8 @@ impl Opt {
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
                     .count(entries_count)
-                    .command(command, command_text);
+                    .command(command, command_text)
+                    .session(session_filter);
 
                 let display = TableDisplay {
                     format,

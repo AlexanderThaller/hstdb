@@ -20,6 +20,7 @@ pub struct Filter {
     no_subdirs: bool,
     command_text: Option<Regex>,
     count: usize,
+    session: Option<Regex>,
 }
 
 impl Filter {
@@ -95,6 +96,11 @@ impl Filter {
                     .as_ref()
                     .map_or(true, |regex| regex.is_match(&entry.command))
             })
+            .filter(|entry| {
+                self.session
+                    .as_ref()
+                    .map_or(true, |regex| regex.is_match(&entry.session_id.to_string()))
+            })
             .collect();
 
         if self.count > 0 {
@@ -104,6 +110,10 @@ impl Filter {
         } else {
             Ok(filtered)
         }
+    }
+
+    pub fn session(self, session: Option<Regex>) -> Self {
+        Self { session, ..self }
     }
 
     fn filter_command(entry_command: &str, command: &str) -> bool {
