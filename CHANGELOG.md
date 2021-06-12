@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 [UNRELEASED]
+* Add flag `--session` which allows to filter entries by the given session. The
+session of a history entry can be found using `--show-session`.
+
 ## 1.0.0 [2021-06-01]
 * No big changes just updated the dependencies.
 * Automatic binaries created through github actions.

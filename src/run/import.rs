@@ -34,7 +34,7 @@ pub enum Error {
     Message(#[from] message::Error),
 
     #[error("{0}")]
-    Server(#[from] server::ServerError),
+    Server(#[from] server::Error),
 
     #[error("{0}")]
     Store(#[from] store::Error),
@@ -65,7 +65,7 @@ pub enum Error {
     #[error("can not open histfile: {0}")]
     OpenHistfile(std::io::Error),
 
-    #[error("accumulator for time finished is none")]
+    #[error("accumulator fortime finished is none")]
     TimeFinishedAccumulatorNone,
 
     #[error("accumulator for result is none")]
@@ -241,7 +241,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
                 time_finished,
                 result,
                 command,
-            })
+            });
         }
 
         if line.starts_with(':') {
@@ -280,13 +280,13 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
                     time_finished,
                     result,
                     command,
-                })
+                });
             }
         } else if let Some(ref mut acc) = acc_command {
             acc.push_str(&line);
             acc.push('\n');
         } else {
-            panic!("line not starting with : and no multiline command")
+            unreachable!("line not starting with : and no multiline command");
         }
     }
 
@@ -299,7 +299,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
             time_finished,
             result,
             command,
-        })
+        });
     }
 
     let store = crate::store::new(data_dir);

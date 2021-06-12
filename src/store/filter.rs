@@ -20,6 +20,7 @@ pub struct Filter {
     no_subdirs: bool,
     command_text: Option<Regex>,
     count: usize,
+    session: Option<Regex>,
 }
 
 impl Filter {
@@ -73,7 +74,7 @@ impl Filter {
         }
     }
 
-    pub fn filter_entries(&self, entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
+    pub fn filter_entries(&self, entries: Vec<Entry>) -> Vec<Entry> {
         let filtered: Vec<Entry> = entries
             .into_iter()
             .filter(|entry| {
@@ -95,15 +96,22 @@ impl Filter {
                     .as_ref()
                     .map_or(true, |regex| regex.is_match(&entry.command))
             })
+            .filter(|entry| {
+                self.session
+                    .as_ref()
+                    .map_or(true, |regex| regex.is_match(&entry.session_id.to_string()))
+            })
             .collect();
 
         if self.count > 0 {
-            let f = filtered.into_iter().rev().take(self.count).rev().collect();
-
-            Ok(f)
+            filtered.into_iter().rev().take(self.count).rev().collect()
         } else {
-            Ok(filtered)
+            filtered
         }
+    }
+
+    pub fn session(self, session: Option<Regex>) -> Self {
+        Self { session, ..self }
     }
 
     fn filter_command(entry_command: &str, command: &str) -> bool {
