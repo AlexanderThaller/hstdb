@@ -200,7 +200,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,
-        result: usize,
+        result: u16,
         command: String,
     }
 
@@ -208,7 +208,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
     let reader = std::io::BufReader::new(histfile);
 
     let mut acc_time_finished: Option<DateTime<Utc>> = None;
-    let mut acc_result: Option<usize> = None;
+    let mut acc_result: Option<u16> = None;
     let mut acc_command: Option<String> = None;
     let mut multiline_command = false;
 

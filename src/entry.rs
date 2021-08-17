@@ -20,7 +20,7 @@ pub struct Entry {
     pub hostname: String,
     pub command: String,
     pub pwd: PathBuf,
-    pub result: usize,
+    pub result: u16,
     pub session_id: Uuid,
     pub user: String,
 }

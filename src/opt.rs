@@ -242,6 +242,10 @@ struct DefaultArgs {
     /// Filter out failed commands (return code not 0)
     #[structopt(long)]
     filter_failed: bool,
+
+    /// Find commands with the given return code
+    #[structopt(long)]
+    find_status: Option<u16>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -313,6 +317,7 @@ impl Opt {
         let no_subdirs = self.default_args.no_subdirs;
         let command_text = self.default_args.command_text;
         let filter_failed = self.default_args.filter_failed;
+        let find_status = self.default_args.find_status;
 
         let format = !self.default_args.disable_formatting;
         let duration = Display::should_show(self.default_args.show_duration);
@@ -330,7 +335,8 @@ impl Opt {
                     .count(entries_count)
                     .command(command, command_text)
                     .session(session_filter)
-                    .filter_failed(filter_failed);
+                    .filter_failed(filter_failed)
+                    .find_status(find_status);
 
                 let display = TableDisplay {
                     format,
