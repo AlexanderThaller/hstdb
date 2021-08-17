@@ -34,7 +34,7 @@ jobs:
             override: true
 
       - name: Run clippy
-        run: cargo clippy --verbose
+        run: cargo clippy --verbose -- -D warnings -D clippy::dbg_macro -D clippy::todo
 
   test-linux:
     runs-on: ubuntu-latest
