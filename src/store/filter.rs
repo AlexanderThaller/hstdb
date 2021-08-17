@@ -21,6 +21,7 @@ pub struct Filter {
     command_text: Option<Regex>,
     count: usize,
     session: Option<Regex>,
+    filter_failed: bool,
 }
 
 impl Filter {
@@ -101,6 +102,7 @@ impl Filter {
                     .as_ref()
                     .map_or(true, |regex| regex.is_match(&entry.session_id.to_string()))
             })
+            .filter(|entry| !self.filter_failed || entry.result == 0)
             .collect();
 
         if self.count > 0 {
@@ -112,6 +114,13 @@ impl Filter {
 
     pub fn session(self, session: Option<Regex>) -> Self {
         Self { session, ..self }
+    }
+
+    pub fn filter_failed(self, filter_failed: bool) -> Self {
+        Self {
+            filter_failed,
+            ..self
+        }
     }
 
     fn filter_command(entry_command: &str, command: &str) -> bool {

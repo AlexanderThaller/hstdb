@@ -238,6 +238,10 @@ struct DefaultArgs {
     /// Disable printing of header
     #[structopt(long)]
     hide_header: bool,
+
+    /// Filter out failed commands (return code not 0)
+    #[structopt(long)]
+    filter_failed: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -308,6 +312,7 @@ impl Opt {
         let session_filter = self.default_args.session;
         let no_subdirs = self.default_args.no_subdirs;
         let command_text = self.default_args.command_text;
+        let filter_failed = self.default_args.filter_failed;
 
         let format = !self.default_args.disable_formatting;
         let duration = Display::should_show(self.default_args.show_duration);
@@ -324,7 +329,8 @@ impl Opt {
                     .hostname(hostname, all_hosts)?
                     .count(entries_count)
                     .command(command, command_text)
-                    .session(session_filter);
+                    .session(session_filter)
+                    .filter_failed(filter_failed);
 
                 let display = TableDisplay {
                     format,
