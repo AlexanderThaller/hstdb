@@ -1,0 +1,3 @@
+# When true will not save commands that start with a space.
+# Default: true
+ignore_space = true

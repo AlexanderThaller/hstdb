@@ -36,6 +36,7 @@ serde = { version = "1", features = ["derive"] }
 sled = "0.34"
 structopt = "0.3"
 thiserror = "1"
+toml = "0.5"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [profile.release]

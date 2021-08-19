@@ -10,7 +10,9 @@
 * Add option `--find-status`. When specified will find all commands
   with the given return code.
 * Ignore commands starting with ' ' (space). This should make it
-  easier to not record sensitive commands.
+  easier to not record sensitive commands. This is configurable in a
+  configuration file with the option `ignore_space`. By default this
+  is enabled.
 
 ## 1.0.0 [2021-06-01]
 * No big changes just updated the dependencies.

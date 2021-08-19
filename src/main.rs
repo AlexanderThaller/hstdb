@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 mod client;
+mod config;
 mod entry;
 mod message;
 mod opt;

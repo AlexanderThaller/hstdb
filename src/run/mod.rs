@@ -2,6 +2,7 @@ pub mod import;
 
 use crate::{
     client,
+    config,
     entry::Entry,
     message,
     message::{
@@ -70,6 +71,9 @@ pub enum Error {
 
     #[error("can not import entries: {0}")]
     Import(import::Error),
+
+    #[error("can not read configuration file: {0}")]
+    ReadConfig(config::Error),
 }
 
 #[derive(Debug)]
@@ -279,9 +283,13 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
     Ok(())
 }
 
-pub fn zsh_add_history(command: String, socket_path: PathBuf) -> Result<(), Error> {
-    if command.starts_with(' ') {
-        debug!("not recording a command starting with a space")
+pub fn zsh_add_history(
+    config: &config::Config,
+    command: String,
+    socket_path: PathBuf,
+) -> Result<(), Error> {
+    if config.ignore_space && command.starts_with(' ') {
+        debug!("not recording a command starting with a space");
     } else {
         let data = CommandStart::from_env(command)?;
         client::new(socket_path).send(&Message::CommandStart(data))?;
