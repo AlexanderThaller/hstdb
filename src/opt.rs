@@ -348,6 +348,11 @@ impl Opt {
         let session = Display::should_show(self.default_args.show_session);
         let status = Display::should_show(self.default_args.show_status);
 
+        if std::env::var_os("RUST_LOG").is_none() {
+            std::env::set_var("RUST_LOG", config.log_level.as_str());
+        }
+        pretty_env_logger::init();
+
         sub_command.map_or_else(
             || {
                 let filter = Filter::default()

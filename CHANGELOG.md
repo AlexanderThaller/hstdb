@@ -13,6 +13,8 @@
   easier to not record sensitive commands. This is configurable in a
   configuration file with the option `ignore_space`. By default this
   is enabled.
+* Add configuration option `log_level` to change the default log level
+  to run under.
 
 ## 1.0.0 [2021-06-01]
 * No big changes just updated the dependencies.

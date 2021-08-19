@@ -1,11 +1,11 @@
-use log::debug;
+use log::{
+    debug,
+    LevelFilter,
+};
 use std::path::Path;
 use thiserror::Error;
 
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -16,14 +16,22 @@ pub enum Error {
     ParseConfig(toml::de::Error),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct Config {
+    /// Then true disables recording commands that start with a space
     pub ignore_space: bool,
+
+    /// The log level to run under
+    pub log_level: LevelFilter,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { ignore_space: true }
+        Self {
+            ignore_space: true,
+            log_level: LevelFilter::Warn,
+        }
     }
 }
 

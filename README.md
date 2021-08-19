@@ -205,6 +205,22 @@ After that you can configure origins and start syncing the files between
 machines. There is no autocommit/autosync implemented as we don't want to have
 commits for each command run. This could be changed in the future.
 
+## Configuration
+
+There is also a way to configure `histdb-rs`. By default the configuration is stored under `$HOME/.config/histdb-rs/config.toml`. A different path can be specified using the `--config-path` option.
+
+The default configuration looks like this:
+
+```toml
+# When true will not save commands that start with a space.
+# Default: true
+ignore_space = true
+
+# The log level to run under.
+# Default: Warn
+log_level = "Warn"
+```
+
 ## Import
 
 ### zsh-histdb

@@ -1,3 +1,7 @@
 # When true will not save commands that start with a space.
 # Default: true
 ignore_space = true
+
+# The log level to run under.
+# Default: Warn
+log_level = "Warn"
