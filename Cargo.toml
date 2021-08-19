@@ -39,6 +39,6 @@ thiserror = "1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [profile.release]
-codegen-units = 1
-lto = true
-panic = 'abort'
+lto = "fat"
+panic = "abort"
+opt-level = 3

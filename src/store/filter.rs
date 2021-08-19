@@ -14,13 +14,15 @@ pub enum Error {
 
 #[derive(Debug, Default)]
 pub struct Filter {
-    hostname: Option<String>,
-    directory: Option<PathBuf>,
-    command: Option<String>,
-    no_subdirs: bool,
-    command_text: Option<Regex>,
-    count: usize,
-    session: Option<Regex>,
+    pub hostname: Option<String>,
+    pub directory: Option<PathBuf>,
+    pub command: Option<String>,
+    pub no_subdirs: bool,
+    pub command_text: Option<Regex>,
+    pub count: usize,
+    pub session: Option<Regex>,
+    pub filter_failed: bool,
+    pub find_status: Option<u16>,
 }
 
 impl Filter {
@@ -101,6 +103,18 @@ impl Filter {
                     .as_ref()
                     .map_or(true, |regex| regex.is_match(&entry.session_id.to_string()))
             })
+            .filter(|entry| !self.filter_failed || entry.result == 0)
+            .filter(|entry| {
+                self.find_status
+                    .and_then(|find_status| {
+                        if find_status == entry.result {
+                            None
+                        } else {
+                            Some(())
+                        }
+                    })
+                    .is_none()
+            })
             .collect();
 
         if self.count > 0 {
@@ -114,6 +128,13 @@ impl Filter {
         Self { session, ..self }
     }
 
+    pub fn filter_failed(self, filter_failed: bool) -> Self {
+        Self {
+            filter_failed,
+            ..self
+        }
+    }
+
     fn filter_command(entry_command: &str, command: &str) -> bool {
         entry_command
             .split('|')
@@ -124,6 +145,13 @@ impl Filter {
                     .map_or(false, |entry_command| entry_command == command)
             })
             .any(|has_command| has_command)
+    }
+
+    pub fn find_status(self, find_status: Option<u16>) -> Self {
+        Self {
+            find_status,
+            ..self
+        }
     }
 }
 

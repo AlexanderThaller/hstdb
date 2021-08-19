@@ -93,7 +93,7 @@ impl CommandStart {
 pub struct CommandFinished {
     pub session_id: Uuid,
     pub time_stamp: DateTime<Utc>,
-    pub result: usize,
+    pub result: u16,
 }
 
 impl CommandFinished {
