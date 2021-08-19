@@ -28,7 +28,7 @@ flume = "0.10"
 glob = "0.3"
 hostname = "0.3"
 humantime = "2"
-log = "0.4"
+log = { version = "0.4", features = ["serde"] }
 pretty_env_logger = "0.4"
 regex = "1"
 rusqlite = { version = "0.25", optional = true }
@@ -36,6 +36,7 @@ serde = { version = "1", features = ["derive"] }
 sled = "0.34"
 structopt = "0.3"
 thiserror = "1"
+toml = "0.5"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [profile.release]

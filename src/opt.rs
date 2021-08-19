@@ -1,4 +1,5 @@
 use crate::{
+    config,
     run,
     run::{
         Display,
@@ -98,6 +99,14 @@ fn default_socket_path() -> Result<String, Error> {
     Ok(socket_path.to_string_lossy().to_string())
 }
 
+fn default_config_path() -> Result<String, Error> {
+    let project_dir = project_dir();
+
+    let socket_path = project_dir?.config_dir().join("config.toml");
+
+    Ok(socket_path.to_string_lossy().to_string())
+}
+
 #[derive(StructOpt, Debug)]
 struct ZSHAddHistory {
     #[structopt(flatten)]
@@ -156,6 +165,13 @@ struct Socket {
     /// Path to the socket for communication with the server
     #[structopt(short, long, env = "HISTDBRS_SOCKET_PATH", default_value = into_str!(get_default_or_fail(default_socket_path)))]
     socket_path: PathBuf,
+}
+
+#[derive(StructOpt, Debug)]
+struct Config {
+    /// Path to the socket for communication with the server
+    #[structopt(long, env = "HISTDBRS_CONFIG_PATH", default_value = into_str!(get_default_or_fail(default_config_path)))]
+    config_path: PathBuf,
 }
 
 #[derive(StructOpt, Debug)]
@@ -246,6 +262,9 @@ struct DefaultArgs {
     /// Find commands with the given return code
     #[structopt(long)]
     find_status: Option<u16>,
+
+    #[structopt(flatten)]
+    config: Config,
 }
 
 #[derive(StructOpt, Debug)]
@@ -318,6 +337,8 @@ impl Opt {
         let command_text = self.default_args.command_text;
         let filter_failed = self.default_args.filter_failed;
         let find_status = self.default_args.find_status;
+        let config = config::Config::open(self.default_args.config.config_path)
+            .map_err(run::Error::ReadConfig)?;
 
         let format = !self.default_args.disable_formatting;
         let duration = Display::should_show(self.default_args.show_duration);
@@ -326,6 +347,11 @@ impl Opt {
         let pwd = Display::should_show(self.default_args.show_pwd);
         let session = Display::should_show(self.default_args.show_session);
         let status = Display::should_show(self.default_args.show_status);
+
+        if std::env::var_os("RUST_LOG").is_none() {
+            std::env::set_var("RUST_LOG", config.log_level.as_str());
+        }
+        pretty_env_logger::init();
 
         sub_command.map_or_else(
             || {
@@ -353,7 +379,7 @@ impl Opt {
             },
             |sub_command| match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
-                    run::zsh_add_history(o.command, o.socket_path.socket_path)
+                    run::zsh_add_history(&config, o.command, o.socket_path.socket_path)
                 }
                 SubCommand::Server(o) => {
                     run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
