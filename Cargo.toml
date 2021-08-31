@@ -1,6 +1,6 @@
 [package]
 name = "histdb-rs"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 edition = "2018"
 
