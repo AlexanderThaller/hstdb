@@ -78,7 +78,7 @@ shell.
 Help output of default command:
 
 ```
-histdb-rs 1.0.0
+histdb-rs 2.0.0
 
 USAGE:
     histdb-rs [FLAGS] [OPTIONS] [SUBCOMMAND]
@@ -89,6 +89,9 @@ FLAGS:
 
         --disable-formatting
             Disable fancy formatting
+
+        --filter-failed
+            Filter out failed commands (return code not 0)
 
     -h, --help
             Prints help information
@@ -128,17 +131,26 @@ OPTIONS:
     -t, --text <command-text>
             Only print entries containing the given regex
 
+        --config-path <config-path>
+            Path to the socket for communication with the server [env: HISTDBRS_CONFIG_PATH=]  [default:
+            /home/athaller/.config/histdb-rs/config.toml]
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $HOME/.local/share/histdb-rs]
+            Path to folder in which to store the history files [default: /home/athaller/.local/share/histdb-rs]
 
     -e, --entries-count <entries-count>
             How many entries to print [default: 25]
+
+        --find-status <find-status>
+            Find commands with the given return code
 
     -f, --folder <folder>
             Only print entries that have been executed in the given directory
 
         --hostname <hostname>
             Filter by given hostname
+
+        --session <session>
+            Filter by given session
 
 
 SUBCOMMANDS:

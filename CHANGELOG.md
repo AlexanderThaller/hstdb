@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 [UNRELEASED]
+## 2.0.0 [2021-08-31]
 * Add flag `--session`. Allows to filter entries by the given
   session. The session of a history entry can be found using
   `--show-session`.
