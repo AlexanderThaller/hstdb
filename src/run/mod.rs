@@ -182,6 +182,7 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
         handle
             .write_all(header.join("\t").as_bytes())
             .map_err(Error::WriteStdout)?;
+
         handle.write_all(b"\n").map_err(Error::WriteStdout)?;
     }
 
@@ -212,6 +213,7 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
         handle
             .write_all(row.join("\t").as_bytes())
             .map_err(Error::WriteStdout)?;
+
         handle.write_all(b"\n").map_err(Error::WriteStdout)?;
     }
 

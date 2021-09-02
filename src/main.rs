@@ -19,7 +19,14 @@ use structopt::StructOpt;
 fn main() {
     let opt = Opt::from_args();
 
-    if let Err(err) = opt.run() {
-        error!("{}", err);
+    match opt.run() {
+        Err(run::Error::WriteStdout(io_err)) => {
+            // If pipe is closed we can savely ignore that error
+            if io_err.kind() == std::io::ErrorKind::BrokenPipe {}
+        }
+
+        Err(err) => error!("{}", err),
+
+        Ok(_) => (),
     }
 }
