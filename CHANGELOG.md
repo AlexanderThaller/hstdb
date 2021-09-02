@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 [2021-09-02]
+* No longer show an error when piping the output of histdb-rs and the
+  pipe has been closed. [#19]
+
 ## 2.0.0 [2021-08-31]
 * Add flag `--session`. Allows to filter entries by the given
   session. The session of a history entry can be found using
