@@ -1,22 +1,22 @@
-function histdb-rs-init() {
+function hstdb-init() {
   local session_id;
-  session_id="$(histdb-rs session_id)"
+  session_id="$(hstdb session_id)"
   export HISTDB_RS_SESSION_ID="${session_id}"
 }
 
-function histdb-rs-zshaddhistory() {
+function hstdb-zshaddhistory() {
   unset HISTDB_RS_RETVAL;
-  histdb-rs zshaddhistory $@
+  hstdb zshaddhistory $@
 }
 
-function histdb-rs-precmd() {
+function hstdb-precmd() {
   export HISTDB_RS_RETVAL="${?}"
-  histdb-rs precmd
+  hstdb precmd
 }
 
 autoload -Uz add-zsh-hook
 
-add-zsh-hook zshaddhistory histdb-rs-zshaddhistory
-add-zsh-hook precmd histdb-rs-precmd
+add-zsh-hook zshaddhistory hstdb-zshaddhistory
+add-zsh-hook precmd hstdb-precmd
 
-histdb-rs-init
+hstdb-init

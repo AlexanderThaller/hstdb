@@ -51,7 +51,7 @@ fn get_default_or_fail<T>(func: fn() -> Result<T, Error>) -> T {
 }
 
 fn project_dir() -> Result<ProjectDirs, Error> {
-    ProjectDirs::from("com", "histdb-rs", "histdb-rs").ok_or(Error::ProjectDirs)
+    ProjectDirs::from("com", "hstdb", "hstdb").ok_or(Error::ProjectDirs)
 }
 
 fn default_data_dir() -> Result<String, Error> {
@@ -89,7 +89,7 @@ fn default_zsh_histfile_path() -> Result<String, Error> {
 fn default_socket_path() -> Result<String, Error> {
     let project_dir = project_dir();
 
-    let fallback_path = PathBuf::from("/tmp/histdb-rs/");
+    let fallback_path = PathBuf::from("/tmp/hstdb/");
 
     let socket_path = project_dir?
         .runtime_dir()

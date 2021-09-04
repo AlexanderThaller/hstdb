@@ -374,7 +374,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "histdb-rs"
+name = "hstdb"
 version = "2.0.1"
 dependencies = [
  "bincode",
