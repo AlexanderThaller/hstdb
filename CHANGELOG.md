@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2.0.1 [2021-09-02]
-* No longer show an error when piping the output of histdb-rs and the
+* No longer show an error when piping the output of hstdb and the
   pipe has been closed. [#19]
 
 ## 2.0.0 [2021-08-31]
@@ -29,4 +29,4 @@
 ### Changed
 
 * Command filter will now only match if entry command matches exactly
-[[a5c3785](https://github.com/AlexanderThaller/histdb-rs/commit/b4a89c2f109b68b901e4610ebe2f39834ffe8d6f)]
+[[a5c3785](https://github.com/AlexanderThaller/hstdb/commit/b4a89c2f109b68b901e4610ebe2f39834ffe8d6f)]

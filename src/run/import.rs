@@ -290,10 +290,9 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
         }
     }
 
-    if acc_command.is_some() {
+    if let Some(command) = acc_command {
         let time_finished = acc_time_finished.expect("shoudnt fail if command is some");
         let result = acc_result.expect("shoudnt fail if command is some");
-        let command = acc_command.expect("shoudnt fail if command is some");
 
         entries.push(HistfileEntry {
             time_finished,

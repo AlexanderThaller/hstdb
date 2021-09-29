@@ -1,6 +1,6 @@
 #!/bin/sh
 
 export RUN_DIR="/tmp/tmp.4y3mPdtiZB-tmpdir"
-./target/release/histdb-rs zshaddhistory -s "${RUN_DIR}/socket" "test"
+./target/release/hstdb zshaddhistory -s "${RUN_DIR}/socket" "test"
 export HISTDB_RS_RETVAL=0
-./target/release/histdb-rs precmd -s "${RUN_DIR}/socket"
+./target/release/hstdb precmd -s "${RUN_DIR}/socket"

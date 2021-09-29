@@ -1,10 +1,10 @@
-# Maintainer: Alexander Thaller <aur+histdb-rs@alexander.thaller.ws>
-pkgname=histdb-rs
+# Maintainer: Alexander Thaller <aur+hstdb@alexander.thaller.ws>
+pkgname=hstdb
 pkgver=2.0.0
 pkgrel=1
 pkgdesc="Better history management for zsh."
 arch=('x86_64')
-url="https://github.com/AlexanderThaller/histdb-rs"
+url="https://github.com/AlexanderThaller/hstdb"
 license=('MIT')
 depends=('sqlite')
 makedepends=('cargo')

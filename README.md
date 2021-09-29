@@ -1,7 +1,7 @@
-# histdb-rs
+# hstdb
 
-[![Build Status](https://github.com/AlexanderThaller/histdb-rs/workflows/Rust/badge.svg?branch=main)](https://github.com/AlexanderThaller/histdb-rs/actions?query=workflow%3ARusteain)
-[![crates.io](https://img.shields.io/crates/v/histdb-rs.svg)](https://crates.io/crates/histdb-rs)
+[![Build Status](https://github.com/AlexanderThaller/hstdb/workflows/Rust/badge.svg?branch=main)](https://github.com/AlexanderThaller/hstdb/actions?query=workflow%3ARusteain)
+[![crates.io](https://img.shields.io/crates/v/hstdb.svg)](https://crates.io/crates/hstdb)
 
 Better history management for zsh. Based on ideas from
 [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
@@ -28,19 +28,19 @@ Has pretty much the same feature set as zsh-histdb:
 You can either install the right binary from the releases page or run:
 
 ```
-cargo install histdb-rs
+cargo install hstdb
 ```
 
 ## Archlinux
 
-Install from the aur: https://aur.archlinux.org/packages/histdb-rs/
+Install from the aur: https://aur.archlinux.org/packages/hstdb/
 
 ## First Start
 
-After you installed histdb-rs you need to start the server:
+After you installed hstdb you need to start the server:
 
 ```
-histdb-rs server
+hstdb server
 ```
 
 By default the server will run in the foreground.
@@ -48,29 +48,29 @@ By default the server will run in the foreground.
 To stop the server you can run the following:
 
 ```
-histdb-rs stop
+hstdb stop
 ```
 
 Or send SIGTERM/SIGINT (Ctrl+C) to stop the server.
 
 You can also use the systemd unit file in
-[`histdb-rs.service`](resources/histdb-rs.service) which you can copy to
+[`hstdb.service`](resources/hstdb.service) which you can copy to
 `"$HOME/.config/systemd` and enable/start with the following:
 
 ```
 systemctl --user daemon-reload
-systemctl --user enable histdb-rs.service
-systemctl --user start histdb-rs.service
+systemctl --user enable hstdb.service
+systemctl --user start hstdb.service
 ```
 
-After that you can add the following to your `.zshrc` to enable histdb-rs for
+After that you can add the following to your `.zshrc` to enable hstdb for
 you shell.
 
 ```
-eval "$(histdb-rs init)"
+eval "$(hstdb init)"
 ```
 
-You can run that in your current shell to enable histdb-rs or restart your
+You can run that in your current shell to enable hstdb or restart your
 shell.
 
 ## Usage
@@ -78,10 +78,10 @@ shell.
 Help output of default command:
 
 ```
-histdb-rs 2.0.0
+hstdb 2.0.0
 
 USAGE:
-    histdb-rs [FLAGS] [OPTIONS] [SUBCOMMAND]
+    hstdb [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
         --all-hosts
@@ -133,9 +133,9 @@ OPTIONS:
 
         --config-path <config-path>
             Path to the socket for communication with the server [env: HISTDBRS_CONFIG_PATH=]  [default:
-            /home/athaller/.config/histdb-rs/config.toml]
+            /home/athaller/.config/hstdb/config.toml]
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: /home/athaller/.local/share/histdb-rs]
+            Path to folder in which to store the history files [default: /home/athaller/.local/share/hstdb]
 
     -e, --entries-count <entries-count>
             How many entries to print [default: 25]
@@ -188,10 +188,10 @@ SUBCOMMANDS:
             Add new command for current session
 ```
 
-The most basic command ist just running `histdb-rs` without any arguments:
+The most basic command ist just running `hstdb` without any arguments:
 
 ```
-» histdb-rs
+» hstdb
  tmn    cmd
  14:28  cargo +nightly install --path .
 ```
@@ -201,11 +201,11 @@ That will print the history for the current machine. By default only the last
 
 ## Git
 
-Histdb-rs was written to easily sync the history between multiple machines. For
-that histdb-rs will write separate history files for each machine.
+hstdb was written to easily sync the history between multiple machines. For
+that hstdb will write separate history files for each machine.
 
 If you want to sync between machines go to the datadir (default is
-`$HOME/.local/share/histdb-rs`) and run the following commands:
+`$HOME/.local/share/hstdb`) and run the following commands:
 
 ```
 git init
@@ -219,7 +219,7 @@ commits for each command run. This could be changed in the future.
 
 ## Configuration
 
-There is also a way to configure `histdb-rs`. By default the configuration is stored under `$HOME/.config/histdb-rs/config.toml`. A different path can be specified using the `--config-path` option.
+There is also a way to configure `hstdb`. By default the configuration is stored under `$HOME/.config/hstdb/config.toml`. A different path can be specified using the `--config-path` option.
 
 The default configuration looks like this:
 
@@ -239,11 +239,11 @@ log_level = "Warn"
 
 ```
 » histdb import histdb -h
-histdb-rs-import-histdb 0.1.0
+hstdb-import-histdb 0.1.0
 Import entries from existing histdb sqlite file
 
 USAGE:
-    histdb-rs import histdb [OPTIONS]
+    hstdb import histdb [OPTIONS]
 
 FLAGS:
     -h, --help
@@ -252,7 +252,7 @@ FLAGS:
 
 OPTIONS:
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $HOME/.local/share/histdb-rs]
+            Path to folder in which to store the history files [default: $HOME/.local/share/hstdb]
 
     -i, --import-file <import-file>
             Path to the existing histdb sqlite file [default: $HOME/.histdb/zsh-history.db]
@@ -273,11 +273,11 @@ same session should still be grouped together.
 
 ```
 » histdb import histfile -h
-histdb-rs-import-histfile 0.1.0
+hstdb-import-histfile 0.1.0
 Import entries from existing zsh histfile
 
 USAGE:
-    histdb-rs import histfile [OPTIONS]
+    hstdb import histfile [OPTIONS]
 
 FLAGS:
     -h, --help
@@ -286,7 +286,7 @@ FLAGS:
 
 OPTIONS:
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $HOME/.local/share/histdb-rs]
+            Path to folder in which to store the history files [default: $HOME/.local/share/hstdb]
 
     -i, --import-file <import-file>
             Path to the existing zsh histfile file [default: $HOME/.histfile]
