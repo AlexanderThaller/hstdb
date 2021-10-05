@@ -33,6 +33,7 @@ pub struct Builder {
     pub(super) cache_dir: PathBuf,
     pub(super) data_dir: PathBuf,
     pub(super) socket: PathBuf,
+    pub(super) handle_ctrlc: bool,
 }
 
 impl Builder {
@@ -48,6 +49,8 @@ impl Builder {
         let stopping = Arc::new(AtomicBool::new(false));
         let wait_group = WaitGroup::new();
 
+        let handle_ctrlc = self.handle_ctrlc;
+
         Ok(Server {
             db,
             socket,
@@ -55,6 +58,7 @@ impl Builder {
             store,
             stopping,
             wait_group,
+            handle_ctrlc,
         })
     }
 }

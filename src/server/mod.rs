@@ -101,13 +101,20 @@ pub struct Server {
     pub(super) store: Store,
     pub(super) stopping: Arc<AtomicBool>,
     pub(super) wait_group: WaitGroup,
+    pub(super) handle_ctrlc: bool,
 }
 
-pub fn builder(cache_dir: PathBuf, data_dir: PathBuf, socket: PathBuf) -> Builder {
+pub fn builder(
+    cache_dir: PathBuf,
+    data_dir: PathBuf,
+    socket: PathBuf,
+    handle_ctrlc: bool,
+) -> Builder {
     Builder {
         cache_dir,
         data_dir,
         socket,
+        handle_ctrlc,
     }
 }
 
@@ -128,7 +135,9 @@ impl Server {
             data_sender,
         );
 
-        Self::ctrl_c_watcher(self.stopping, self.socket_path.clone())?;
+        if self.handle_ctrlc {
+            Self::ctrl_c_watcher(self.stopping, self.socket_path.clone())?;
+        }
 
         info!("listening on {:?}", self.socket_path);
 
