@@ -27,8 +27,6 @@ pub struct Entry {
 
 impl Entry {
     pub fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
-        dbg!(&start.command);
-
         let command = start.command.trim_end();
 
         let command = command
@@ -39,8 +37,6 @@ impl Entry {
 
         let user = start.user.trim().to_string();
         let hostname = start.hostname.trim().to_string();
-
-        dbg!(&command);
 
         Self {
             time_finished: finish.time_stamp,
