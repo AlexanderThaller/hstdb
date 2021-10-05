@@ -301,7 +301,7 @@ pub fn zsh_add_history(
 }
 
 pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
-    server::builder(cache_dir, data_dir, socket)
+    server::builder(cache_dir, data_dir, socket, true)
         .build()?
         .run()?;
 

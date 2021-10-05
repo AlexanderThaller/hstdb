@@ -27,15 +27,26 @@ pub struct Entry {
 
 impl Entry {
     pub fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
+        let command = start.command.trim_end();
+
+        let command = command
+            .strip_suffix("\\r\\n")
+            .or_else(|| command.strip_suffix("\\n"))
+            .unwrap_or(command)
+            .to_string();
+
+        let user = start.user.trim().to_string();
+        let hostname = start.hostname.trim().to_string();
+
         Self {
-            command: start.command,
+            time_finished: finish.time_stamp,
+            time_start: start.time_stamp,
+            hostname,
+            command,
             pwd: start.pwd,
             result: finish.result,
             session_id: start.session_id,
-            time_finished: finish.time_stamp,
-            time_start: start.time_stamp,
-            user: start.user,
-            hostname: start.hostname,
+            user,
         }
     }
 }
