@@ -374,3 +374,21 @@ fn write_newline_command() {
 
     assert_eq!(entries.len(), 0);
 }
+
+#[test]
+fn existing_empty_file() {
+    let hostname = "testhostname".to_string();
+    let data_dir = tempfile::tempdir().unwrap().into_path();
+    std::fs::File::create(data_dir.join(format!("{}.csv", hostname))).unwrap();
+
+    dbg!(&data_dir);
+
+    let store = store::new(data_dir.clone());
+    let entries = store.get_entries(&Filter::default()).unwrap();
+
+    dbg!(&entries);
+
+    assert_eq!(entries.len(), 0);
+
+    std::fs::remove_dir_all(&data_dir).unwrap();
+}
