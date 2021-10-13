@@ -1,6 +1,6 @@
 [package]
 name = "hstdb"
-version = "2.0.1"
+version = "2.0.2"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 edition = "2018"
 
@@ -23,7 +23,7 @@ comfy-table = "4"
 crossbeam-utils = "0.8"
 csv = "1"
 ctrlc = { version = "3", features = ["termination"] }
-directories = "3"
+directories = "4"
 flume = "0.10"
 glob = "0.3"
 hostname = "0.3"
@@ -31,7 +31,7 @@ humantime = "2"
 log = { version = "0.4", features = ["serde"] }
 pretty_env_logger = "0.4"
 regex = "1"
-rusqlite = { version = "0.25", optional = true }
+rusqlite = { version = "0.26", optional = true }
 serde = { version = "1", features = ["derive"] }
 sled = "0.34"
 structopt = "0.3"
