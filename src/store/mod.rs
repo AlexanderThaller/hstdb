@@ -13,11 +13,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("can not create log folder: {0}")]
-    CreateLogFolder(PathBuf, std::io::Error),
+    #[error("can not create index folder: {0}")]
+    CreateIndexFolder(PathBuf, std::io::Error),
 
-    #[error("can not open log file: {0}")]
-    OpenLogFile(PathBuf, std::io::Error),
+    #[error("can not open index file: {0}")]
+    OpenIndexFile(PathBuf, std::io::Error),
 
     #[error("can not serialize entry: {0}")]
     SerializeEntry(csv::Error),
@@ -28,8 +28,8 @@ pub enum Error {
     #[error("problem while iterating glob: {0}")]
     GlobIteration(glob::GlobError),
 
-    #[error("can not read log file {0:?}: {1}")]
-    ReadLogFile(PathBuf, csv::Error),
+    #[error("can not read index file {0:?}: {1}")]
+    ReadIndexFile(PathBuf, csv::Error),
 
     #[error("{0}")]
     Filter(#[from] filter::Error),
@@ -55,7 +55,7 @@ impl Store {
         let file_path = folder_path.join(format!("{}.csv", hostname));
 
         fs::create_dir_all(&folder_path)
-            .map_err(|err| Error::CreateLogFolder(folder_path.to_path_buf(), err))?;
+            .map_err(|err| Error::CreateIndexFolder(folder_path.to_path_buf(), err))?;
 
         let mut builder = csv::WriterBuilder::new();
 
@@ -68,7 +68,7 @@ impl Store {
             .append(true)
             .create(true)
             .open(&file_path)
-            .map_err(|err| Error::OpenLogFile(file_path.clone(), err))?;
+            .map_err(|err| Error::OpenIndexFile(file_path.clone(), err))?;
 
         let mut writer = builder.from_writer(index_file);
 
@@ -119,12 +119,12 @@ impl Store {
 
     fn read_log_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<Entry>, Error> {
         let file = std::fs::File::open(&file_path)
-            .map_err(|err| Error::OpenLogFile(file_path.as_ref().to_path_buf(), err))?;
+            .map_err(|err| Error::OpenIndexFile(file_path.as_ref().to_path_buf(), err))?;
 
         let reader = std::io::BufReader::new(file);
 
         Self::read_metadata(reader)
-            .map_err(|err| Error::ReadLogFile(file_path.as_ref().to_path_buf(), err))
+            .map_err(|err| Error::ReadIndexFile(file_path.as_ref().to_path_buf(), err))
     }
 
     fn read_metadata<R: std::io::Read>(reader: R) -> Result<Vec<Entry>, csv::Error> {
