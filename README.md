@@ -78,32 +78,61 @@ shell.
 Help output of default command:
 
 ```
-hstdb 2.0.0
+hstdb 2.1.0
+Alexander Thaller <alexander.thaller@trivago.com>
+Better history management for zsh. Based on ideas from
+[https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
 
 USAGE:
-    hstdb [FLAGS] [OPTIONS] [SUBCOMMAND]
+    hstdb [OPTIONS] [SUBCOMMAND]
 
-FLAGS:
+OPTIONS:
         --all-hosts
             Print all hosts
+
+    -c, --command <COMMAND>
+            Only print entries beginning with the given command
+
+        --config-path <CONFIG_PATH>
+            Path to the socket for communication with the server [env: HISTDBRS_CONFIG_PATH=]
+            [default: /home/athaller/.config/hstdb/config.toml]
+
+    -d, --data-dir <DATA_DIR>
+            Path to folder in which to store the history files [default:
+            /home/athaller/.local/share/hstdb]
 
         --disable-formatting
             Disable fancy formatting
 
+    -e, --entries-count <ENTRIES_COUNT>
+            How many entries to print [default: 25]
+
+    -f, --folder <FOLDER>
+            Only print entries that have been executed in the given directory
+
         --filter-failed
             Filter out failed commands (return code not 0)
 
+        --find-status <FIND_STATUS>
+            Find commands with the given return code
+
     -h, --help
-            Prints help information
+            Print help information
 
         --hide-header
             Disable printing of header
+
+        --hostname <HOSTNAME>
+            Filter by given hostname
 
     -i, --in
             Only print entries that have been executed in the current directory
 
         --no-subdirs
             Exclude subdirectories when filtering by folder
+
+        --session <SESSION>
+            Filter by given session
 
         --show-duration
             Show how long the command ran
@@ -120,70 +149,36 @@ FLAGS:
         --show-status
             Print returncode of command
 
-    -V, --version
-            Prints version information
-
-
-OPTIONS:
-    -c, --command <command>
-            Only print entries beginning with the given command
-
-    -t, --text <command-text>
+    -t, --text <COMMAND_TEXT>
             Only print entries containing the given regex
 
-        --config-path <config-path>
-            Path to the socket for communication with the server [env: HISTDBRS_CONFIG_PATH=]  [default:
-            /home/athaller/.config/hstdb/config.toml]
-    -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: /home/athaller/.local/share/hstdb]
+    -T, --text_excluded <COMMAND_TEXT_EXCLUDED>
+            Only print entries not containing the given regex
 
-    -e, --entries-count <entries-count>
-            How many entries to print [default: 25]
-
-        --find-status <find-status>
-            Find commands with the given return code
-
-    -f, --folder <folder>
-            Only print entries that have been executed in the given directory
-
-        --hostname <hostname>
-            Filter by given hostname
-
-        --session <session>
-            Filter by given session
-
+    -V, --version
+            Print version information
 
 SUBCOMMANDS:
     bench
             Run benchmark against server
-
     disable
             Disable history recording for current session
-
     enable
             Enable history recording for current session
-
     help
-            Prints this message or the help of the given subcommand(s)
-
+            Print this message or the help of the given subcommand(s)
     import
             Import entries from existing histdb sqlite or zsh histfile
-
     init
             Print out shell functions needed by histdb and set current session id
-
     precmd
             Finish command for current session
-
     server
             Start the server
-
     session_id
             Get new session id
-
     stop
             Stop the server
-
     zshaddhistory
             Add new command for current session
 ```
