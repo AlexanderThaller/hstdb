@@ -423,13 +423,13 @@ fn format_duration(
 
     Ok(humantime::format_duration(duration_std)
         .to_string()
-        .replace(" ", ""))
+        .replace(' ', ""))
 }
 
 fn format_command(command: &str, format: bool) -> String {
     if format {
         command.trim().to_string()
     } else {
-        command.trim().replace("\n", "\\n")
+        command.trim().replace('\n', "\\n")
     }
 }
