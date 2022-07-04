@@ -47,5 +47,6 @@ pretty_assertions = "1"
 
 [profile.release]
 lto = "fat"
-panic = "abort"
 opt-level = 3
+panic = "abort"
+strip = "debuginfo"
