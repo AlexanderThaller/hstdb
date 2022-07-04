@@ -203,6 +203,10 @@ struct DefaultArgs {
     #[structopt(short = "t", long = "text")]
     command_text: Option<Regex>,
 
+    /// Only print entries not containing the given regex
+    #[structopt(short = "T", long = "text_excluded")]
+    command_text_excluded: Option<Regex>,
+
     /// Only print entries that have been executed in the current directory
     #[structopt(short, long = "in", conflicts_with = "folder")]
     in_current: bool,
@@ -335,6 +339,7 @@ impl Opt {
         let session_filter = self.default_args.session;
         let no_subdirs = self.default_args.no_subdirs;
         let command_text = self.default_args.command_text;
+        let command_text_excluded = self.default_args.command_text_excluded;
         let filter_failed = self.default_args.filter_failed;
         let find_status = self.default_args.find_status;
         let config = config::Config::open(self.default_args.config.config_path)
@@ -359,7 +364,7 @@ impl Opt {
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
                     .count(entries_count)
-                    .command(command, command_text)
+                    .command(command, command_text, command_text_excluded)
                     .session(session_filter)
                     .filter_failed(filter_failed)
                     .find_status(find_status);
