@@ -19,6 +19,7 @@ pub struct Filter {
     pub command: Option<String>,
     pub no_subdirs: bool,
     pub command_text: Option<Regex>,
+    pub command_text_excluded: Option<Regex>,
     pub count: usize,
     pub session: Option<Regex>,
     pub filter_failed: bool,
@@ -68,10 +69,16 @@ impl Filter {
         Self { count, ..self }
     }
 
-    pub fn command(self, command: Option<String>, command_text: Option<Regex>) -> Self {
+    pub fn command(
+        self,
+        command: Option<String>,
+        command_text: Option<Regex>,
+        command_text_excluded: Option<Regex>,
+    ) -> Self {
         Self {
             command,
             command_text,
+            command_text_excluded,
             ..self
         }
     }
@@ -97,6 +104,11 @@ impl Filter {
                 self.command_text
                     .as_ref()
                     .map_or(true, |regex| regex.is_match(&entry.command))
+            })
+            .filter(|entry| {
+                self.command_text_excluded
+                    .as_ref()
+                    .map_or(true, |regex| !regex.is_match(&entry.command))
             })
             .filter(|entry| {
                 self.session
