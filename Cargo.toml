@@ -21,6 +21,7 @@ histdb-import = ["rusqlite"]
 [dependencies]
 bincode = "1"
 chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "3", features = ["derive", "env"] }
 comfy-table = "6"
 crossbeam-utils = "0.8"
 csv = "1"
@@ -36,7 +37,6 @@ regex = "1"
 rusqlite = { version = "0.27", optional = true }
 serde = { version = "1", features = ["derive"] }
 sled = "0.34"
-structopt = "0.3"
 thiserror = "1"
 toml = "0.5"
 uuid = { version = "1", features = ["serde", "v4"] }
