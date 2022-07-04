@@ -3,6 +3,9 @@
 #![warn(rust_2018_idioms, unused_lifetimes, missing_debug_implementations)]
 #![forbid(unsafe_code)]
 
+use clap::Parser;
+use log::error;
+
 mod client;
 mod config;
 mod entry;
@@ -12,9 +15,7 @@ mod run;
 mod server;
 mod store;
 
-use log::error;
 use opt::Opt;
-use structopt::StructOpt;
 
 fn main() {
     let opt = Opt::from_args();
