@@ -2,7 +2,9 @@
 name = "hstdb"
 version = "2.0.2"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
-edition = "2018"
+
+edition = "2021"
+rust-version = "1.56"
 
 description = "Better history management for zsh. Based on ideas from [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb)."
 documentation = "https://docs.rs/hstdb/"
