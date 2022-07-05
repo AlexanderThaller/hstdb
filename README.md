@@ -161,6 +161,8 @@ OPTIONS:
 SUBCOMMANDS:
     bench
             Run benchmark against server
+    completion
+            Generate autocomplete files for shells
     disable
             Disable history recording for current session
     enable
