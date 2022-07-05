@@ -308,18 +308,15 @@ enum SubCommand {
 }
 
 #[derive(Parser, Debug)]
-#[clap(
-    author, version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
-)]
 pub struct CompletionOpts {
     /// For which shell to generate the autocomplete
-    #[clap(arg_enum, value_parser)]
+    #[clap(arg_enum, value_parser, default_value = "zsh", possible_values = ["zsh"])]
     shell: clap_complete::Shell,
 }
 
 #[derive(Parser, Debug)]
 #[clap(
-    author, version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
+    version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
 )]
 pub struct Opt {
     #[clap(flatten)]
