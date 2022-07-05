@@ -303,17 +303,17 @@ enum SubCommand {
     Bench(Socket),
 
     /// Generate autocomplete files for shells
-    #[clap(name = "autocomplete")]
-    Autocomplete(Autocomplete),
+    #[clap(name = "completion")]
+    Completion(CompletionOpts),
 }
 
 #[derive(Parser, Debug)]
 #[clap(
     author, version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
 )]
-pub struct Autocomplete {
+pub struct CompletionOpts {
     /// For which shell to generate the autocomplete
-    #[clap(short, long, arg_enum, value_parser)]
+    #[clap(arg_enum, value_parser)]
     shell: clap_complete::Shell,
 }
 
@@ -414,7 +414,7 @@ impl Opt {
                     Ok(())
                 }
                 SubCommand::Bench(s) => run::bench(s.socket_path),
-                SubCommand::Autocomplete(o) => {
+                SubCommand::Completion(o) => {
                     let mut cmd = Opt::command();
                     let name = cmd.get_name().to_string();
 
