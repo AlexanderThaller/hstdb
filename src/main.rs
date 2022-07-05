@@ -4,7 +4,7 @@
 #![forbid(unsafe_code)]
 
 use clap::Parser;
-use log::error;
+use color_eyre::eyre::Result;
 
 mod client;
 mod config;
@@ -17,17 +17,27 @@ mod store;
 
 use opt::Opt;
 
-fn main() {
+fn main() -> Result<()> {
+    color_eyre::install()?;
+
     let opt = Opt::from_args();
 
-    match opt.run() {
-        Err(run::Error::WriteStdout(io_err)) => {
-            // If pipe is closed we can savely ignore that error
-            if io_err.kind() == std::io::ErrorKind::BrokenPipe {}
+    if let Err(err) = opt.run() {
+        let downcast = err.downcast_ref::<run::Error>();
+
+        match downcast {
+            Some(run::Error::WriteStdout(ref io_err)) => {
+                // If pipe is closed we can savely ignore that error
+                if io_err.kind() == std::io::ErrorKind::BrokenPipe {
+                    return Ok(());
+                }
+
+                Err(err)
+            }
+
+            Some(_) | None => Err(err),
         }
-
-        Err(err) => error!("{}", err),
-
-        Ok(_) => (),
+    } else {
+        Ok(())
     }
 }

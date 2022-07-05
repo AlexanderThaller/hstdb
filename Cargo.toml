@@ -22,11 +22,13 @@ histdb-import = ["rusqlite"]
 bincode = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "3", features = ["derive", "env"] }
+color-eyre = { version = "0.6", default-features = false }
 comfy-table = "6"
 crossbeam-utils = "0.8"
 csv = "1"
 ctrlc = { version = "3", features = ["termination"] }
 directories = "4"
+eyre = "0.6.8"
 flume = "0.10"
 glob = "0.3"
 hostname = "0.3"
