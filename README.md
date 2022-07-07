@@ -79,7 +79,6 @@ Help output of default command:
 
 ```
 hstdb 2.1.0
-Alexander Thaller <alexander.thaller@trivago.com>
 Better history management for zsh. Based on ideas from
 [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
 
@@ -161,6 +160,8 @@ OPTIONS:
 SUBCOMMANDS:
     bench
             Run benchmark against server
+    completion
+            Generate autocomplete files for shells
     disable
             Disable history recording for current session
     enable
@@ -306,6 +307,47 @@ information will be stored:
 * `session_id` will be generated and used for all commands imported from the
 histfile
 * `user` will use the current user thats running the import
+
+## Completion
+Currentyl only zsh generation is enabled as other shells don't make
+sense at the moment.
+
+Completion generation is provided through a subcommand:
+
+```
+» hstdb completion -h
+hstdb-completion 2.1.0
+Generate autocomplete files for shells
+
+USAGE:
+    hstdb completion <SHELL>
+
+ARGS:
+    <SHELL>
+            For which shell to generate the autocomplete [default: zsh] [possible values: zsh]
+
+OPTIONS:
+    -h, --help
+            Print help information
+
+    -V, --version
+            Print version information
+```
+
+### Zsh
+For zsh make sure your `$fpath` contains a folder you can write to:
+```
+# add .zsh_completion to load additional zsh stuff
+export fpath=(~/.zsh_completion $fpath)
+```
+
+Then write the autocomplete file to that folder:
+```
+hstdb completion zsh > ~/.zsh_completion/_hstdb
+```
+
+After that restart your shell which should now have working
+autocompletion.
 
 ## Contribution
 

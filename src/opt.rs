@@ -1,18 +1,12 @@
-use crate::{
-    config,
-    run,
-    run::{
-        Display,
-        TableDisplay,
-    },
-    store::Filter,
-};
+use std::path::PathBuf;
+
 use clap::{
     AppSettings::{
         ColoredHelp,
         GlobalVersion,
         NextLineHelp,
     },
+    CommandFactory,
     Parser,
     Subcommand,
 };
@@ -22,8 +16,17 @@ use directories::{
 };
 use log::error;
 use regex::Regex;
-use std::path::PathBuf;
 use thiserror::Error;
+
+use crate::{
+    config,
+    run,
+    run::{
+        Display,
+        TableDisplay,
+    },
+    store::Filter,
+};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -298,11 +301,22 @@ enum SubCommand {
     /// Run benchmark against server
     #[clap(name = "bench")]
     Bench(Socket),
+
+    /// Generate autocomplete files for shells
+    #[clap(name = "completion")]
+    Completion(CompletionOpts),
+}
+
+#[derive(Parser, Debug)]
+pub struct CompletionOpts {
+    /// For which shell to generate the autocomplete
+    #[clap(arg_enum, value_parser, default_value = "zsh", possible_values = ["zsh"])]
+    shell: clap_complete::Shell,
 }
 
 #[derive(Parser, Debug)]
 #[clap(
-    author, version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
+    version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
 )]
 pub struct Opt {
     #[clap(flatten)]
@@ -395,6 +409,14 @@ impl Opt {
                     Ok(())
                 }
                 SubCommand::Bench(s) => run::bench(s.socket_path),
+                SubCommand::Completion(o) => {
+                    let mut cmd = Opt::command();
+                    let name = cmd.get_name().to_string();
+
+                    clap_complete::generate(o.shell, &mut cmd, name, &mut std::io::stdout());
+
+                    Ok(())
+                }
             },
         )
     }

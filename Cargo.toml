@@ -21,6 +21,7 @@ histdb-import = ["rusqlite"]
 [dependencies]
 bincode = "1"
 chrono = { version = "0.4", features = ["serde"] }
+clap_complete = "3"
 clap = { version = "3", features = ["derive", "env"] }
 color-eyre = { version = "0.6", default-features = false }
 comfy-table = "6"
