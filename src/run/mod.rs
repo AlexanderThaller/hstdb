@@ -74,6 +74,9 @@ pub enum Error {
 
     #[error("encountered negative duration when trying to format duration")]
     NegativeDuration,
+
+    #[error("can not format duration")]
+    FormatDuration,
 }
 
 #[derive(Debug)]
@@ -198,7 +201,10 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
         }
 
         if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?);
+            row.push(
+                format_duration(entry.time_start, entry.time_finished)
+                    .map_err(|e| e.wrap_err(Error::FormatDuration))?,
+            );
         }
 
         if display.status.is_show() {
@@ -208,6 +214,7 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
         if display.session.is_show() {
             row.push(format_uuid(entry.session_id));
         }
+
         if display.pwd.is_show() {
             row.push(format_pwd(&entry.pwd)?);
         }
@@ -265,7 +272,10 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
         }
 
         if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?);
+            row.push(
+                format_duration(entry.time_start, entry.time_finished)
+                    .map_err(|e| e.wrap_err(Error::FormatDuration))?,
+            );
         }
 
         if display.status.is_show() {
