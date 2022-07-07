@@ -81,6 +81,9 @@ pub enum Error {
 
     #[error("can not import from histfile: {0}")]
     ImportHistfile(import::Error),
+
+    #[error("can not format entry: {0}\nentry: {1:?}")]
+    FormatEntry(Box<Error>, Entry),
 }
 
 #[derive(Debug)]
@@ -194,36 +197,50 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     }
 
     for entry in entries {
-        let mut row = vec![format_timestamp(entry.time_finished)];
-
-        if display.host.is_show() {
-            row.push(entry.hostname);
-        }
-
-        if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?);
-        }
-
-        if display.status.is_show() {
-            row.push(format!("{}", entry.result));
-        }
-
-        if display.session.is_show() {
-            row.push(format_uuid(entry.session_id));
-        }
-
-        if display.pwd.is_show() {
-            row.push(format_pwd(&entry.pwd)?);
-        }
-
-        row.push(format_command(&entry.command, display.format));
-
-        handle
-            .write_all(row.join("\t").as_bytes())
-            .map_err(Error::WriteStdout)?;
-
-        handle.write_all(b"\n").map_err(Error::WriteStdout)?;
+        default_no_format_entry(&mut handle, display, &entry)
+            .map_err(|e| Error::FormatEntry(Box::new(e), entry))?;
     }
+
+    Ok(())
+}
+
+fn default_no_format_entry<T>(
+    handle: &mut T,
+    display: &TableDisplay,
+    entry: &Entry,
+) -> Result<(), Error>
+where
+    T: Write,
+{
+    let mut row = vec![format_timestamp(entry.time_finished)];
+
+    if display.host.is_show() {
+        row.push(entry.hostname.clone());
+    }
+
+    if display.duration.is_show() {
+        row.push(format_duration(entry.time_start, entry.time_finished)?);
+    }
+
+    if display.status.is_show() {
+        row.push(format!("{}", entry.result));
+    }
+
+    if display.session.is_show() {
+        row.push(format_uuid(entry.session_id));
+    }
+
+    if display.pwd.is_show() {
+        row.push(format_pwd(&entry.pwd)?);
+    }
+
+    row.push(format_command(&entry.command, display.format));
+
+    handle
+        .write_all(row.join("\t").as_bytes())
+        .map_err(Error::WriteStdout)?;
+
+    handle.write_all(b"\n").map_err(Error::WriteStdout)?;
 
     Ok(())
 }
@@ -262,33 +279,44 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
     }
 
     for entry in entries {
-        let mut row = vec![format_timestamp(entry.time_finished)];
-
-        if display.host.is_show() {
-            row.push(entry.hostname);
-        }
-
-        if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?);
-        }
-
-        if display.status.is_show() {
-            row.push(format!("{}", entry.result));
-        }
-
-        if display.session.is_show() {
-            row.push(format_uuid(entry.session_id));
-        }
-        if display.pwd.is_show() {
-            row.push(format_pwd(&entry.pwd)?);
-        }
-
-        row.push(format_command(&entry.command, display.format));
-
-        table.add_row(row);
+        default_format_entry(&mut table, display, &entry)
+            .map_err(|e| Error::FormatEntry(Box::new(e), entry))?;
     }
 
     println!("{}", table);
+
+    Ok(())
+}
+
+fn default_format_entry(
+    table: &mut Table,
+    display: &TableDisplay,
+    entry: &Entry,
+) -> Result<(), Error> {
+    let mut row = vec![format_timestamp(entry.time_finished)];
+
+    if display.host.is_show() {
+        row.push(entry.hostname.clone());
+    }
+
+    if display.duration.is_show() {
+        row.push(format_duration(entry.time_start, entry.time_finished)?);
+    }
+
+    if display.status.is_show() {
+        row.push(format!("{}", entry.result));
+    }
+
+    if display.session.is_show() {
+        row.push(format_uuid(entry.session_id));
+    }
+    if display.pwd.is_show() {
+        row.push(format_pwd(&entry.pwd)?);
+    }
+
+    row.push(format_command(&entry.command, display.format));
+
+    table.add_row(row);
 
     Ok(())
 }
