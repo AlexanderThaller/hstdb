@@ -4,7 +4,6 @@
 #![forbid(unsafe_code)]
 
 use clap::Parser;
-use log::error;
 
 mod client;
 mod config;
@@ -15,6 +14,7 @@ mod run;
 mod server;
 mod store;
 
+use log::error;
 use opt::Opt;
 
 fn main() {

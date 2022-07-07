@@ -28,7 +28,10 @@ use comfy_table::{
     Cell,
     Table,
 };
-use log::debug;
+use log::{
+    debug,
+    warn,
+};
 use std::{
     convert::TryInto,
     io::Write,
@@ -69,11 +72,21 @@ pub enum Error {
     #[error("can not write to stdout: {0}")]
     WriteStdout(std::io::Error),
 
-    #[error("can not import entries: {0}")]
-    Import(import::Error),
-
     #[error("can not read configuration file: {0}")]
     ReadConfig(config::Error),
+
+    #[error("encountered negative duration when trying to format duration")]
+    NegativeDuration,
+
+    #[cfg(feature = "histdb-import")]
+    #[error("can not import from histdb: {0}")]
+    ImportHistdb(import::Error),
+
+    #[error("can not import from histfile: {0}")]
+    ImportHistfile(import::Error),
+
+    #[error("can not format entry: {0}\nentry: {1:?}")]
+    FormatEntry(Box<Error>, Entry),
 }
 
 #[derive(Debug)]
@@ -144,7 +157,9 @@ pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Re
     let entries = store::new(data_dir).get_entries(filter)?;
 
     if display.format {
-        default_format(display, entries)
+        default_format(display, entries);
+
+        Ok(())
     } else {
         default_no_format(display, entries)
     }
@@ -187,40 +202,56 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     }
 
     for entry in entries {
-        let mut row = vec![format_timestamp(entry.time_finished)];
-
-        if display.host.is_show() {
-            row.push(entry.hostname);
+        if let Err(err) = default_no_format_entry(&mut handle, display, &entry) {
+            warn!("{}", Error::FormatEntry(Box::new(err), entry));
         }
-
-        if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?);
-        }
-
-        if display.status.is_show() {
-            row.push(format!("{}", entry.result));
-        }
-
-        if display.session.is_show() {
-            row.push(format_uuid(entry.session_id));
-        }
-        if display.pwd.is_show() {
-            row.push(format_pwd(&entry.pwd)?);
-        }
-
-        row.push(format_command(&entry.command, display.format));
-
-        handle
-            .write_all(row.join("\t").as_bytes())
-            .map_err(Error::WriteStdout)?;
-
-        handle.write_all(b"\n").map_err(Error::WriteStdout)?;
     }
 
     Ok(())
 }
 
-pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
+fn default_no_format_entry<T>(
+    handle: &mut T,
+    display: &TableDisplay,
+    entry: &Entry,
+) -> Result<(), Error>
+where
+    T: Write,
+{
+    let mut row = vec![format_timestamp(entry.time_finished)];
+
+    if display.host.is_show() {
+        row.push(entry.hostname.clone());
+    }
+
+    if display.duration.is_show() {
+        row.push(format_duration(entry.time_start, entry.time_finished)?);
+    }
+
+    if display.status.is_show() {
+        row.push(format!("{}", entry.result));
+    }
+
+    if display.session.is_show() {
+        row.push(format_uuid(entry.session_id));
+    }
+
+    if display.pwd.is_show() {
+        row.push(format_pwd(&entry.pwd)?);
+    }
+
+    row.push(format_command(&entry.command, display.format));
+
+    handle
+        .write_all(row.join("\t").as_bytes())
+        .map_err(Error::WriteStdout)?;
+
+    handle.write_all(b"\n").map_err(Error::WriteStdout)?;
+
+    Ok(())
+}
+
+pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
     let mut table = Table::new();
     table.load_preset("                   ");
     table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
@@ -254,33 +285,43 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
     }
 
     for entry in entries {
-        let mut row = vec![format_timestamp(entry.time_finished)];
-
-        if display.host.is_show() {
-            row.push(entry.hostname);
+        if let Err(err) = default_format_entry(&mut table, display, &entry) {
+            warn!("{}", Error::FormatEntry(Box::new(err), entry));
         }
-
-        if display.duration.is_show() {
-            row.push(format_duration(entry.time_start, entry.time_finished)?);
-        }
-
-        if display.status.is_show() {
-            row.push(format!("{}", entry.result));
-        }
-
-        if display.session.is_show() {
-            row.push(format_uuid(entry.session_id));
-        }
-        if display.pwd.is_show() {
-            row.push(format_pwd(&entry.pwd)?);
-        }
-
-        row.push(format_command(&entry.command, display.format));
-
-        table.add_row(row);
     }
 
     println!("{}", table);
+}
+
+fn default_format_entry(
+    table: &mut Table,
+    display: &TableDisplay,
+    entry: &Entry,
+) -> Result<(), Error> {
+    let mut row = vec![format_timestamp(entry.time_finished)];
+
+    if display.host.is_show() {
+        row.push(entry.hostname.clone());
+    }
+
+    if display.duration.is_show() {
+        row.push(format_duration(entry.time_start, entry.time_finished)?);
+    }
+
+    if display.status.is_show() {
+        row.push(format!("{}", entry.result));
+    }
+
+    if display.session.is_show() {
+        row.push(format_uuid(entry.session_id));
+    }
+    if display.pwd.is_show() {
+        row.push(format_pwd(&entry.pwd)?);
+    }
+
+    row.push(format_command(&entry.command, display.format));
+
+    table.add_row(row);
 
     Ok(())
 }
@@ -418,6 +459,11 @@ fn format_duration(
 ) -> Result<String, Error> {
     let duration = time_finished - time_start;
     let duration_ms = duration.num_milliseconds();
+
+    if duration_ms < 0 {
+        return Err(Error::NegativeDuration);
+    }
+
     let duration_std =
         std::time::Duration::from_millis(duration_ms.try_into().map_err(Error::ConvertDuration)?);
 

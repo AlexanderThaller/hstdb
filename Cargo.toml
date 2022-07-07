@@ -41,6 +41,7 @@ sled = "0.34"
 thiserror = "1"
 toml = "0.5"
 uuid = { version = "1", features = ["serde", "v4"] }
+exitcode = "1.1.2"
 
 [dev-dependencies]
 tempfile = "3"

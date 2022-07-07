@@ -400,10 +400,10 @@ impl Opt {
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
                     Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
-                        .map_err(run::Error::Import),
+                        .map_err(run::Error::ImportHistdb),
                     Import::Histfile(o) => {
                         run::import::histfile(&o.import_file, o.data_dir.data_dir)
-                            .map_err(run::Error::Import)
+                            .map_err(run::Error::ImportHistfile)
                     }
                 },
                 SubCommand::Init => {
