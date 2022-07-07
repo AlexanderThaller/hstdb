@@ -28,7 +28,10 @@ use comfy_table::{
     Cell,
     Table,
 };
-use log::debug;
+use log::{
+    debug,
+    warn,
+};
 use std::{
     convert::TryInto,
     io::Write,
@@ -154,7 +157,9 @@ pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Re
     let entries = store::new(data_dir).get_entries(filter)?;
 
     if display.format {
-        default_format(display, entries)
+        default_format(display, entries);
+
+        Ok(())
     } else {
         default_no_format(display, entries)
     }
@@ -197,8 +202,9 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     }
 
     for entry in entries {
-        default_no_format_entry(&mut handle, display, &entry)
-            .map_err(|e| Error::FormatEntry(Box::new(e), entry))?;
+        if let Err(err) = default_no_format_entry(&mut handle, display, &entry) {
+            warn!("{}", Error::FormatEntry(Box::new(err), entry));
+        }
     }
 
     Ok(())
@@ -245,7 +251,7 @@ where
     Ok(())
 }
 
-pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
+pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
     let mut table = Table::new();
     table.load_preset("                   ");
     table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
@@ -279,13 +285,12 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
     }
 
     for entry in entries {
-        default_format_entry(&mut table, display, &entry)
-            .map_err(|e| Error::FormatEntry(Box::new(e), entry))?;
+        if let Err(err) = default_format_entry(&mut table, display, &entry) {
+            warn!("{}", Error::FormatEntry(Box::new(err), entry));
+        }
     }
 
     println!("{}", table);
-
-    Ok(())
 }
 
 fn default_format_entry(
