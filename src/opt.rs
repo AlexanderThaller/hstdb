@@ -327,7 +327,7 @@ pub struct Opt {
 }
 
 impl Opt {
-    pub fn run(self) -> Result<(), eyre::Error> {
+    pub fn run(self) -> Result<(), run::Error> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;
         let folder = self.default_args.folder;
@@ -399,9 +399,11 @@ impl Opt {
                 }
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
-                    Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir),
+                    Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
+                        .map_err(run::Error::ImportHistdb),
                     Import::Histfile(o) => {
                         run::import::histfile(&o.import_file, o.data_dir.data_dir)
+                            .map_err(run::Error::ImportHistfile)
                     }
                 },
                 SubCommand::Init => {

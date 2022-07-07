@@ -94,7 +94,7 @@ pub enum Error {
 }
 
 #[cfg(feature = "histdb-import")]
-pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), eyre::Error> {
+pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -196,7 +196,7 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), ey
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), eyre::Error> {
+pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,

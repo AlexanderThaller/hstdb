@@ -75,8 +75,12 @@ pub enum Error {
     #[error("encountered negative duration when trying to format duration")]
     NegativeDuration,
 
-    #[error("can not format duration")]
-    FormatDuration,
+    #[cfg(feature = "histdb-import")]
+    #[error("can not import from histdb: {0}")]
+    ImportHistdb(import::Error),
+
+    #[error("can not import from histfile: {0}")]
+    ImportHistfile(import::Error),
 }
 
 #[derive(Debug)]
@@ -143,11 +147,7 @@ impl Display {
     }
 }
 
-pub fn default(
-    filter: &Filter,
-    display: &TableDisplay,
-    data_dir: PathBuf,
-) -> Result<(), eyre::Error> {
+pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Result<(), Error> {
     let entries = store::new(data_dir).get_entries(filter)?;
 
     if display.format {
@@ -157,7 +157,7 @@ pub fn default(
     }
 }
 
-pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), eyre::Error> {
+pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
     let mut header = vec!["tmn"];
 
     if display.host.is_show() {
@@ -201,10 +201,7 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
         }
 
         if display.duration.is_show() {
-            row.push(
-                format_duration(entry.time_start, entry.time_finished)
-                    .map_err(|e| e.wrap_err(Error::FormatDuration))?,
-            );
+            row.push(format_duration(entry.time_start, entry.time_finished)?);
         }
 
         if display.status.is_show() {
@@ -231,7 +228,7 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     Ok(())
 }
 
-pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), eyre::Error> {
+pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
     let mut table = Table::new();
     table.load_preset("                   ");
     table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
@@ -272,10 +269,7 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(),
         }
 
         if display.duration.is_show() {
-            row.push(
-                format_duration(entry.time_start, entry.time_finished)
-                    .map_err(|e| e.wrap_err(Error::FormatDuration))?,
-            );
+            row.push(format_duration(entry.time_start, entry.time_finished)?);
         }
 
         if display.status.is_show() {
@@ -303,7 +297,7 @@ pub fn zsh_add_history(
     config: &config::Config,
     command: String,
     socket_path: PathBuf,
-) -> Result<(), eyre::Error> {
+) -> Result<(), Error> {
     if config.ignore_space && command.starts_with(' ') {
         debug!("not recording a command starting with a space");
     } else {
@@ -314,7 +308,7 @@ pub fn zsh_add_history(
     Ok(())
 }
 
-pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), eyre::Error> {
+pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     server::builder(cache_dir, data_dir, socket, true)
         .build()?
         .run()?;
@@ -322,27 +316,27 @@ pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<
     Ok(())
 }
 
-pub fn stop(socket_path: PathBuf) -> Result<(), eyre::Error> {
+pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
     client::new(socket_path).send(&Message::Stop)?;
 
     Ok(())
 }
 
-pub fn disable(socket_path: PathBuf) -> Result<(), eyre::Error> {
+pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
     let session_id = session_id_from_env()?;
     client::new(socket_path).send(&Message::Disable(session_id))?;
 
     Ok(())
 }
 
-pub fn enable(socket_path: PathBuf) -> Result<(), eyre::Error> {
+pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
     let session_id = session_id_from_env()?;
     client::new(socket_path).send(&Message::Enable(session_id))?;
 
     Ok(())
 }
 
-pub fn precmd(socket_path: PathBuf) -> Result<(), eyre::Error> {
+pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
     let data = CommandFinished::from_env()?;
 
     client::new(socket_path).send(&Message::CommandFinished(data))?;
@@ -358,7 +352,7 @@ pub fn init() {
     println!("{}", include_str!("../../resources/init.zsh"));
 }
 
-pub fn bench(socket_path: PathBuf) -> Result<(), eyre::Error> {
+pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
     let client = client::new(socket_path);
 
     let mut start = CommandStart {
@@ -409,7 +403,7 @@ fn format_uuid(uuid: uuid::Uuid) -> String {
         .collect()
 }
 
-fn format_pwd(pwd: impl AsRef<Path>) -> Result<String, eyre::Error> {
+fn format_pwd(pwd: impl AsRef<Path>) -> Result<String, Error> {
     let base_dirs = directories::BaseDirs::new().ok_or(Error::GetBaseDirectories)?;
     let home = base_dirs.home_dir();
 
@@ -429,12 +423,12 @@ fn format_pwd(pwd: impl AsRef<Path>) -> Result<String, eyre::Error> {
 fn format_duration(
     time_start: DateTime<Utc>,
     time_finished: DateTime<Utc>,
-) -> Result<String, eyre::Error> {
+) -> Result<String, Error> {
     let duration = time_finished - time_start;
     let duration_ms = duration.num_milliseconds();
 
     if duration_ms < 0 {
-        return Err(Error::NegativeDuration.into());
+        return Err(Error::NegativeDuration);
     }
 
     let duration_std =
