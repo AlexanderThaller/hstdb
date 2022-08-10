@@ -1,3 +1,23 @@
+use std::path::PathBuf;
+
+use clap::{
+    AppSettings::{
+        ColoredHelp,
+        GlobalVersion,
+        NextLineHelp,
+    },
+    CommandFactory,
+    Parser,
+    Subcommand,
+};
+use directories::{
+    BaseDirs,
+    ProjectDirs,
+};
+use log::error;
+use regex::Regex;
+use thiserror::Error;
+
 use crate::{
     config,
     run,
@@ -7,29 +27,6 @@ use crate::{
     },
     store::Filter,
 };
-use directories::ProjectDirs;
-use log::error;
-use regex::Regex;
-use std::path::PathBuf;
-use structopt::{
-    clap::AppSettings::{
-        ColoredHelp,
-        GlobalVersion,
-        NextLineHelp,
-        VersionlessSubcommands,
-    },
-    StructOpt,
-};
-use thiserror::Error;
-
-macro_rules! into_str {
-    ($x:expr) => {{
-        structopt::lazy_static::lazy_static! {
-            static ref DATA: String = $x.to_string();
-        }
-        DATA.as_str()
-    }};
-}
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -40,97 +37,89 @@ pub enum Error {
     ProjectDirs,
 }
 
-fn get_default_or_fail<T>(func: fn() -> Result<T, Error>) -> T {
-    match func() {
-        Ok(s) => s,
-        Err(e) => {
-            error!("{}", e);
-            std::process::exit(1);
-        }
-    }
+fn project_dir() -> ProjectDirs {
+    ProjectDirs::from("com", "hstdb", "hstdb")
+        .ok_or(Error::ProjectDirs)
+        .expect("can not get project_dir")
 }
 
-fn project_dir() -> Result<ProjectDirs, Error> {
-    ProjectDirs::from("com", "hstdb", "hstdb").ok_or(Error::ProjectDirs)
+fn base_directory() -> BaseDirs {
+    directories::BaseDirs::new()
+        .ok_or(Error::BaseDirectory)
+        .expect("can not get base directory")
 }
 
-fn default_data_dir() -> Result<String, Error> {
-    let project_dir = project_dir()?;
+fn default_data_dir() -> PathBuf {
+    let project_dir = project_dir();
     let data_dir = project_dir.data_dir();
 
-    Ok(data_dir.to_string_lossy().to_string())
+    data_dir.to_owned()
 }
 
-fn default_cache_path() -> Result<String, Error> {
-    let project_dir = project_dir()?;
+fn default_cache_path() -> PathBuf {
+    let project_dir = project_dir();
     let cache_path = project_dir.cache_dir().join("server");
 
-    Ok(cache_path.to_string_lossy().to_string())
+    cache_path
 }
 
-fn default_histdb_sqlite_path() -> Result<String, Error> {
-    let base_dirs = directories::BaseDirs::new().ok_or(Error::BaseDirectory)?;
-
+fn default_histdb_sqlite_path() -> PathBuf {
+    let base_dirs = base_directory();
     let home = base_dirs.home_dir();
-    let file_path = home.join(".histdb").join("zsh-history.db");
-
-    Ok(file_path.to_string_lossy().to_string())
+    home.join(".histdb").join("zsh-history.db")
 }
 
-fn default_zsh_histfile_path() -> Result<String, Error> {
-    let base_dirs = directories::BaseDirs::new().ok_or(Error::BaseDirectory)?;
-
+fn default_zsh_histfile_path() -> PathBuf {
+    let base_dirs = base_directory();
     let home = base_dirs.home_dir();
-    let file_path = home.join(".histfile");
-
-    Ok(file_path.to_string_lossy().to_string())
+    home.join(".histfile")
 }
 
-fn default_socket_path() -> Result<String, Error> {
+fn default_socket_path() -> PathBuf {
     let project_dir = project_dir();
 
     let fallback_path = PathBuf::from("/tmp/hstdb/");
 
-    let socket_path = project_dir?
+    let socket_path = project_dir
         .runtime_dir()
         .unwrap_or(&fallback_path)
         .join("server_socket");
 
-    Ok(socket_path.to_string_lossy().to_string())
+    socket_path
 }
 
-fn default_config_path() -> Result<String, Error> {
+fn default_config_path() -> PathBuf {
     let project_dir = project_dir();
 
-    let socket_path = project_dir?.config_dir().join("config.toml");
+    let socket_path = project_dir.config_dir().join("config.toml");
 
-    Ok(socket_path.to_string_lossy().to_string())
+    socket_path
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct ZSHAddHistory {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     socket_path: Socket,
 
     /// Command to add to history
-    #[structopt(index = 1)]
+    #[clap(index = 1)]
     command: String,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct Server {
     /// Path to the cachefile used to store entries between restarts
-    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_cache_path)))]
+    #[clap(short, long, default_value_os_t = default_cache_path())]
     cache_path: PathBuf,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     data_dir: DataDir,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     socket_path: Socket,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 enum Import {
     #[cfg(feature = "histdb-import")]
     /// Import entries from existing histdb sqlite file
@@ -140,189 +129,200 @@ enum Import {
     Histfile(ImportHistfile),
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct ImportHistdb {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
-    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_histdb_sqlite_path)))]
+    #[clap(short, long, default_value_os_t = default_histdb_sqlite_path())]
     import_file: PathBuf,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct ImportHistfile {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     data_dir: DataDir,
 
     /// Path to the existing zsh histfile file
-    #[structopt(short, long, default_value = into_str!(get_default_or_fail(default_zsh_histfile_path)))]
+    #[clap(short, long, default_value_os_t = default_zsh_histfile_path())]
     import_file: PathBuf,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct Socket {
     /// Path to the socket for communication with the server
-    #[structopt(short, long, env = "HISTDBRS_SOCKET_PATH", default_value = into_str!(get_default_or_fail(default_socket_path)))]
+    #[clap(short, long, env = "HISTDBRS_SOCKET_PATH", default_value_os_t = default_socket_path())]
     socket_path: PathBuf,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct Config {
     /// Path to the socket for communication with the server
-    #[structopt(long, env = "HISTDBRS_CONFIG_PATH", default_value = into_str!(get_default_or_fail(default_config_path)))]
+    #[clap(long, env = "HISTDBRS_CONFIG_PATH", default_value_os_t = default_config_path())]
     config_path: PathBuf,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct DataDir {
     /// Path to folder in which to store the history files
-    #[structopt(
+    #[clap(
         short,
         long,
-        default_value = into_str!(get_default_or_fail(default_data_dir))
+        default_value_os_t = default_data_dir()
     )]
     data_dir: PathBuf,
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct DefaultArgs {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     data_dir: DataDir,
 
     /// How many entries to print
-    #[structopt(short, long, default_value = "25")]
+    #[clap(short, long, default_value = "25")]
     entries_count: usize,
 
     /// Only print entries beginning with the given command
-    #[structopt(short, long)]
+    #[clap(short, long)]
     command: Option<String>,
 
     /// Only print entries containing the given regex
-    #[structopt(short = "t", long = "text")]
+    #[clap(short = 't', long = "text")]
     command_text: Option<Regex>,
 
     /// Only print entries not containing the given regex
-    #[structopt(short = "T", long = "text_excluded")]
+    #[clap(short = 'T', long = "text_excluded")]
     command_text_excluded: Option<Regex>,
 
     /// Only print entries that have been executed in the current directory
-    #[structopt(short, long = "in", conflicts_with = "folder")]
+    #[clap(short, long = "in", conflicts_with = "folder")]
     in_current: bool,
 
     /// Only print entries that have been executed in the given directory
-    #[structopt(short, long, conflicts_with = "in_current")]
+    #[clap(short, long)]
     folder: Option<PathBuf>,
 
     /// Exclude subdirectories when filtering by folder
-    #[structopt(long)]
+    #[clap(long)]
     no_subdirs: bool,
 
     /// Filter by given hostname
-    #[structopt(long, conflicts_with = "all_hosts")]
+    #[clap(long, conflicts_with = "all-hosts")]
     hostname: Option<String>,
 
     /// Filter by given session
-    #[structopt(long)]
+    #[clap(long)]
     session: Option<Regex>,
 
     /// Print all hosts
-    #[structopt(long, conflicts_with = "hostname")]
+    #[clap(long)]
     all_hosts: bool,
 
     /// Disable fancy formatting
-    #[structopt(long)]
+    #[clap(long)]
     disable_formatting: bool,
 
     /// Print host column
-    #[structopt(long)]
+    #[clap(long)]
     show_host: bool,
 
     /// Print returncode of command
-    #[structopt(long)]
+    #[clap(long)]
     show_status: bool,
 
     /// Show how long the command ran
-    #[structopt(long)]
+    #[clap(long)]
     show_duration: bool,
 
     /// Show directory in which the command was run
-    #[structopt(long)]
+    #[clap(long)]
     show_pwd: bool,
 
     /// Show session id for command
-    #[structopt(long)]
+    #[clap(long)]
     show_session: bool,
 
     /// Disable printing of header
-    #[structopt(long)]
+    #[clap(long)]
     hide_header: bool,
 
     /// Filter out failed commands (return code not 0)
-    #[structopt(long)]
+    #[clap(long)]
     filter_failed: bool,
 
     /// Find commands with the given return code
-    #[structopt(long)]
+    #[clap(long)]
     find_status: Option<u16>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     config: Config,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 enum SubCommand {
     /// Add new command for current session
-    #[structopt(name = "zshaddhistory")]
+    #[clap(name = "zshaddhistory")]
     ZSHAddHistory(ZSHAddHistory),
 
     /// Start the server
-    #[structopt(name = "server")]
+    #[clap(name = "server")]
     Server(Server),
 
     /// Stop the server
-    #[structopt(name = "stop")]
+    #[clap(name = "stop")]
     Stop(Socket),
 
     /// Disable history recording for current session
-    #[structopt(name = "disable")]
+    #[clap(name = "disable")]
     Disable(Socket),
 
     /// Enable history recording for current session
-    #[structopt(name = "enable")]
+    #[clap(name = "enable")]
     Enable(Socket),
 
     /// Finish command for current session
-    #[structopt(name = "precmd")]
+    #[clap(name = "precmd")]
     PreCmd(Socket),
 
     /// Get new session id
-    #[structopt(name = "session_id")]
+    #[clap(name = "session_id")]
     SessionID,
 
     /// Import entries from existing histdb sqlite or zsh histfile
-    #[structopt(name = "import")]
+    #[clap(subcommand, name = "import")]
     Import(Import),
 
     /// Print out shell functions needed by histdb and set current session id
-    #[structopt(name = "init")]
+    #[clap(name = "init")]
     Init,
 
     /// Run benchmark against server
-    #[structopt(name = "bench")]
+    #[clap(name = "bench")]
     Bench(Socket),
+
+    /// Generate autocomplete files for shells
+    #[clap(name = "completion")]
+    Completion(CompletionOpts),
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(
-    global_settings = &[ColoredHelp, VersionlessSubcommands, NextLineHelp, GlobalVersion]
+#[derive(Parser, Debug)]
+pub struct CompletionOpts {
+    /// For which shell to generate the autocomplete
+    #[clap(arg_enum, value_parser, default_value = "zsh", possible_values = ["zsh"])]
+    shell: clap_complete::Shell,
+}
+
+#[derive(Parser, Debug)]
+#[clap(
+    version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
 )]
 pub struct Opt {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     default_args: DefaultArgs,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     sub_command: Option<SubCommand>,
 }
 
@@ -400,10 +400,10 @@ impl Opt {
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
                     Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
-                        .map_err(run::Error::Import),
+                        .map_err(run::Error::ImportHistdb),
                     Import::Histfile(o) => {
                         run::import::histfile(&o.import_file, o.data_dir.data_dir)
-                            .map_err(run::Error::Import)
+                            .map_err(run::Error::ImportHistfile)
                     }
                 },
                 SubCommand::Init => {
@@ -411,6 +411,14 @@ impl Opt {
                     Ok(())
                 }
                 SubCommand::Bench(s) => run::bench(s.socket_path),
+                SubCommand::Completion(o) => {
+                    let mut cmd = Opt::command();
+                    let name = cmd.get_name().to_string();
+
+                    clap_complete::generate(o.shell, &mut cmd, name, &mut std::io::stdout());
+
+                    Ok(())
+                }
             },
         )
     }
