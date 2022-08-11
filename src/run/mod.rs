@@ -334,7 +334,7 @@ pub fn zsh_add_history(
     if config.ignore_space && command.starts_with(' ') {
         debug!("not recording a command starting with a space");
     } else {
-        let data = CommandStart::from_env(command)?;
+        let data = CommandStart::from_env(config, command)?;
         client::new(socket_path).send(&Message::CommandStart(data))?;
     }
 

@@ -55,7 +55,8 @@ Or send SIGTERM/SIGINT (Ctrl+C) to stop the server.
 
 You can also use the systemd unit file in
 [`hstdb.service`](resources/hstdb.service) which you can copy to
-`"$HOME/.config/systemd` and enable/start with the following:
+`"$XDG_CONFIG_HOME/systemd` (usually `$HOME/.config/systemd`) and
+enable/start with the following:
 
 ```
 systemctl --user daemon-reload
@@ -94,11 +95,11 @@ OPTIONS:
 
         --config-path <CONFIG_PATH>
             Path to the socket for communication with the server [env: HISTDBRS_CONFIG_PATH=]
-            [default: /home/athaller/.config/hstdb/config.toml]
+            [default: $XDG_CONFIG_HOME/hstdb/config.toml]
 
     -d, --data-dir <DATA_DIR>
             Path to folder in which to store the history files [default:
-            /home/athaller/.local/share/hstdb]
+            $XDG_DATA_HOME/hstdb]
 
         --disable-formatting
             Disable fancy formatting
@@ -201,7 +202,7 @@ hstdb was written to easily sync the history between multiple machines. For
 that hstdb will write separate history files for each machine.
 
 If you want to sync between machines go to the datadir (default is
-`$HOME/.local/share/hstdb`) and run the following commands:
+`$XDG_DATA_HOME/hstdb`) and run the following commands:
 
 ```
 git init
@@ -215,7 +216,10 @@ commits for each command run. This could be changed in the future.
 
 ## Configuration
 
-There is also a way to configure `hstdb`. By default the configuration is stored under `$HOME/.config/hstdb/config.toml`. A different path can be specified using the `--config-path` option.
+There is also a way to configure `hstdb`. By default the configuration
+is stored under `$XDG_CONFIG_HOME/hstdb/config.toml` (usually
+`$HOME/.config/hstdb/config.toml`). A different path can be specified
+using the `--config-path` option.
 
 The default configuration looks like this:
 
@@ -228,6 +232,9 @@ ignore_space = true
 # Default: Warn
 log_level = "Warn"
 ```
+
+An example with all configuration options can be found in
+[config.toml](config.toml).
 
 ## Import
 
@@ -248,7 +255,7 @@ FLAGS:
 
 OPTIONS:
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $HOME/.local/share/hstdb]
+            Path to folder in which to store the history files [default: $XDG_DATA_HOME/hstdb]
 
     -i, --import-file <import-file>
             Path to the existing histdb sqlite file [default: $HOME/.histdb/zsh-history.db]
@@ -282,7 +289,7 @@ FLAGS:
 
 OPTIONS:
     -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $HOME/.local/share/hstdb]
+            Path to folder in which to store the history files [default: $XDG_DATA_HOME/hstdb]
 
     -i, --import-file <import-file>
             Path to the existing zsh histfile file [default: $HOME/.histfile]
@@ -353,6 +360,12 @@ autocompletion.
 
 I'm happy with how the tool works for me so I won't expand it further but
 contributions for features and fixes are always welcome!
+
+## Notes
+* This tool follows the [XDG Base Directory
+  Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+  where possible.
+
 
 ## Alternatives
 
