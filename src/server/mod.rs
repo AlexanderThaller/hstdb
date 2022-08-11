@@ -87,7 +87,7 @@ pub enum Error {
     #[error("can not remove entry from db: {0}")]
     RemoveDbEntry(db::Error),
 
-    #[error("can not add to storeo: {0}")]
+    #[error("can not add to store: {0}")]
     AddStore(crate::store::Error),
 
     #[error("db error: {0}")]

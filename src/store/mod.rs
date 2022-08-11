@@ -13,10 +13,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("can not create index folder: {0}")]
+    #[error("can not create index folder at path {0:?}: {1}")]
     CreateIndexFolder(PathBuf, std::io::Error),
 
-    #[error("can not open index file: {0}")]
+    #[error("can not open index file at path {0:?}: {1}")]
     OpenIndexFile(PathBuf, std::io::Error),
 
     #[error("can not serialize entry: {0}")]
