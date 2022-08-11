@@ -5,3 +5,8 @@ ignore_space = true
 # The log level to run under.
 # Default: Warn
 log_level = "Warn"
+
+# The hostname that should be used when writing an entry. If unset
+# will dynamically get the hostname from the system.
+# Default: None
+hostname = "thaller-desktop-linux"

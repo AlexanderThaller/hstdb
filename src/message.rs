@@ -13,6 +13,8 @@ use std::{
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::config::Config;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
     Stop,
@@ -64,7 +66,7 @@ pub struct CommandStart {
 }
 
 impl CommandStart {
-    pub fn from_env(command: String) -> Result<Self, Error> {
+    pub fn from_env(config: &Config, command: String) -> Result<Self, Error> {
         let pwd = env::current_dir().map_err(Error::GetCurrentDir)?;
 
         let time_stamp = Utc::now();
@@ -73,10 +75,14 @@ impl CommandStart {
 
         let session_id = session_id_from_env()?;
 
-        let hostname = hostname::get()
-            .map_err(Error::GetHostname)?
-            .to_string_lossy()
-            .to_string();
+        let hostname = if let Some(hostname) = config.hostname.clone() {
+            hostname
+        } else {
+            hostname::get()
+                .map_err(Error::GetHostname)?
+                .to_string_lossy()
+                .to_string()
+        };
 
         Ok(Self {
             command,
