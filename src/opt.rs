@@ -64,9 +64,11 @@ fn default_cache_path() -> PathBuf {
 }
 
 fn default_histdb_sqlite_path() -> PathBuf {
-    let base_dirs = base_directory();
-    let home = base_dirs.home_dir();
-    home.join(".histdb").join("zsh-history.db")
+    std::env::var_os("HISTDB_FILE").map(PathBuf::from).unwrap_or_else(|| {
+        let base_dirs = base_directory();
+        let home = base_dirs.home_dir();
+        home.join(".histdb").join("zsh-history.db")
+    })
 }
 
 fn default_zsh_histfile_path() -> PathBuf {
