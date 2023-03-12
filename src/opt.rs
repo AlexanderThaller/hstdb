@@ -356,7 +356,7 @@ impl Opt {
         if std::env::var_os("RUST_LOG").is_none() {
             std::env::set_var("RUST_LOG", config.log_level.as_str());
         }
-        pretty_env_logger::init();
+        env_logger::init();
 
         sub_command.map_or_else(
             || {
