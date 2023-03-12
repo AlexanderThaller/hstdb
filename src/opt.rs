@@ -70,9 +70,11 @@ fn default_histdb_sqlite_path() -> PathBuf {
 }
 
 fn default_zsh_histfile_path() -> PathBuf {
-    let base_dirs = base_directory();
-    let home = base_dirs.home_dir();
-    home.join(".histfile")
+    std::env::var_os("HISTFILE").map(PathBuf::from).unwrap_or_else(|| {
+        let base_dirs = base_directory();
+        let home = base_dirs.home_dir();
+        home.join(".histfile")
+    })
 }
 
 fn default_socket_path() -> PathBuf {
