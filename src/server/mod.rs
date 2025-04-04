@@ -1,6 +1,7 @@
 pub mod builder;
 pub mod db;
 
+use bincode::serde::Compat;
 pub use builder::{
     Builder,
     Error as BuilderError,
@@ -55,7 +56,7 @@ pub enum Error {
     SendBuffer(flume::SendError<Vec<u8>>),
 
     #[error("can not deserialize message: {0}")]
-    DeserializeMessage(bincode::Error),
+    DeserializeMessage(bincode::error::DecodeError),
 
     #[error("can not receive data from channel: {0}")]
     ReceiveData(flume::RecvError),
@@ -240,9 +241,11 @@ impl Server {
         socket_path: impl AsRef<Path>,
     ) -> Result<(), Error> {
         let data = data_receiver.recv().map_err(Error::ReceiveData)?;
-        let message = bincode::deserialize(&data).map_err(Error::DeserializeMessage)?;
+        let (message, _): (Compat<Message>, _) =
+            bincode::decode_from_slice(&data, bincode::config::standard())
+                .map_err(Error::DeserializeMessage)?;
 
-        match message {
+        match message.0 {
             Message::Stop => {
                 stopping.store(true, Ordering::SeqCst);
 
