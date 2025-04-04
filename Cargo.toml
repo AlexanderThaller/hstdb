@@ -23,22 +23,22 @@ bincode = { version = "2", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
-comfy-table = "6"
+comfy-table = "7"
 crossbeam-utils = "0.8"
 csv = "1"
 ctrlc = { version = "3", features = ["termination"] }
-directories = "4"
-flume = "0.10"
+directories = "6"
+flume = "0.11"
 glob = "0.3"
-hostname = "0.3"
+hostname = "0.4"
 humantime = "2"
 log = { version = "0.4", features = ["serde"] }
-pretty_env_logger = "0.4"
+pretty_env_logger = "0.5"
 regex = "1"
-rusqlite = { version = "0.27", optional = true }
+rusqlite = { version = "0.34", optional = true }
 serde = { version = "1", features = ["derive"] }
 sled = "0.34"
-thiserror = "1"
+thiserror = "2"
 toml = "0.5"
 uuid = { version = "1", features = ["serde", "v4"] }
 exitcode = "1.1.2"
