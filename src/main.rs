@@ -29,7 +29,10 @@ fn main() {
             if io_err.kind() == std::io::ErrorKind::BrokenPipe {}
         }
 
-        Err(err) => error!("{err}"),
+        Err(err) => {
+            error!("{}", err);
+            std::process::exit(1);
+        },
 
         Ok(()) => (),
     }
