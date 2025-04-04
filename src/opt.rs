@@ -189,7 +189,7 @@ struct DefaultArgs {
     command_text: Option<Regex>,
 
     /// Only print entries not containing the given regex
-    #[clap(short = 'T', long = "text_excluded")]
+    #[clap(short = 'T', long = "text-excluded", alias = "text_excluded")]
     command_text_excluded: Option<Regex>,
 
     /// Only print entries that have been executed in the current directory
