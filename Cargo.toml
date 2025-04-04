@@ -21,8 +21,8 @@ histdb-import = ["rusqlite"]
 [dependencies]
 bincode = { version = "2", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-clap_complete = "3"
-clap = { version = "3", features = ["derive", "env"] }
+clap_complete = "4"
+clap = { version = "4", features = ["derive", "env"] }
 comfy-table = "6"
 crossbeam-utils = "0.8"
 csv = "1"

@@ -1,11 +1,6 @@
 use std::path::PathBuf;
 
 use clap::{
-    AppSettings::{
-        ColoredHelp,
-        GlobalVersion,
-        NextLineHelp,
-    },
     CommandFactory,
     Parser,
     Subcommand,
@@ -209,7 +204,7 @@ struct DefaultArgs {
     no_subdirs: bool,
 
     /// Filter by given hostname
-    #[clap(long, conflicts_with = "all-hosts")]
+    #[clap(long, conflicts_with = "all_hosts")]
     hostname: Option<String>,
 
     /// Filter by given session
@@ -310,14 +305,12 @@ enum SubCommand {
 #[derive(Parser, Debug)]
 pub struct CompletionOpts {
     /// For which shell to generate the autocomplete
-    #[clap(arg_enum, value_parser, default_value = "zsh", possible_values = ["zsh"])]
+    #[clap(value_parser, default_value = "zsh")]
     shell: clap_complete::Shell,
 }
 
 #[derive(Parser, Debug)]
-#[clap(
-    version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
-)]
+#[clap(version, about)]
 pub struct Opt {
     #[clap(flatten)]
     default_args: DefaultArgs,

@@ -18,7 +18,7 @@ use log::error;
 use opt::Opt;
 
 fn main() {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
 
     match opt.run() {
         Err(run::Error::WriteStdout(io_err)) => {
