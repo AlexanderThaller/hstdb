@@ -169,7 +169,10 @@ struct DataDir {
     data_dir: PathBuf,
 }
 
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "this is a cli app and its fine if there are a lot of bools"
+)]
 #[derive(Parser, Debug)]
 struct DefaultArgs {
     #[clap(flatten)]
@@ -320,6 +323,7 @@ pub struct Opt {
 }
 
 impl Opt {
+    #[expect(clippy::result_large_err, reason = "we will fix this if we need to")]
     pub fn run(self) -> Result<(), run::Error> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;

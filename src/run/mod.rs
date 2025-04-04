@@ -145,6 +145,7 @@ impl Display {
     }
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Result<(), Error> {
     let entries = store::new(data_dir).get_entries(filter)?;
 
@@ -157,20 +158,21 @@ pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Re
     }
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
     let mut header = vec!["tmn"];
 
     if display.host.is_show() {
         header.push("host");
-    };
+    }
 
     if display.duration.is_show() {
         header.push("duration");
-    };
+    }
 
     if display.status.is_show() {
         header.push("res");
-    };
+    }
 
     if display.session.is_show() {
         header.push("ses");
@@ -202,6 +204,7 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 fn default_no_format_entry<T>(
     handle: &mut T,
     display: &TableDisplay,
@@ -252,15 +255,15 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
 
     if display.host.is_show() {
         header.push(Cell::new("host").add_attribute(Attribute::Bold));
-    };
+    }
 
     if display.duration.is_show() {
         header.push(Cell::new("duration").add_attribute(Attribute::Bold));
-    };
+    }
 
     if display.status.is_show() {
         header.push(Cell::new("res").add_attribute(Attribute::Bold));
-    };
+    }
 
     if display.session.is_show() {
         header.push(Cell::new("ses").add_attribute(Attribute::Bold));
@@ -282,9 +285,10 @@ pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
         }
     }
 
-    println!("{}", table);
+    println!("{table}");
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 fn default_format_entry(
     table: &mut Table,
     display: &TableDisplay,
@@ -318,6 +322,7 @@ fn default_format_entry(
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn zsh_add_history(
     config: &config::Config,
     command: String,
@@ -333,6 +338,7 @@ pub fn zsh_add_history(
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     server::builder(cache_dir, data_dir, socket, true)
         .build()?
@@ -341,12 +347,14 @@ pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
     client::new(socket_path).send(&Message::Stop)?;
 
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
     let session_id = session_id_from_env()?;
     client::new(socket_path).send(&Message::Disable(session_id))?;
@@ -354,6 +362,7 @@ pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
     let session_id = session_id_from_env()?;
     client::new(socket_path).send(&Message::Enable(session_id))?;
@@ -361,6 +370,7 @@ pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
     let data = CommandFinished::from_env()?;
 
@@ -377,6 +387,7 @@ pub fn init() {
     println!("{}", include_str!("../../resources/init.zsh"));
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
     let client = client::new(socket_path);
 
@@ -409,14 +420,14 @@ pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
 }
 
 fn format_timestamp(timestamp: DateTime<Utc>) -> String {
-    let today = Local::now().date();
+    let today = Local::now().date_naive();
     let local = timestamp.with_timezone(&chrono::offset::Local);
-    let date = local.date().with_timezone(&chrono::offset::Local);
+    let date = local.date_naive();
 
     if date == today {
         local.format("%H:%M").to_string()
     } else {
-        local.date().format("%Y-%m-%d").to_string()
+        local.date_naive().format("%Y-%m-%d").to_string()
     }
 }
 
@@ -428,6 +439,7 @@ fn format_uuid(uuid: uuid::Uuid) -> String {
         .collect()
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 fn format_pwd(pwd: impl AsRef<Path>) -> Result<String, Error> {
     let base_dirs = directories::BaseDirs::new().ok_or(Error::GetBaseDirectories)?;
     let home = base_dirs.home_dir();
@@ -445,6 +457,7 @@ fn format_pwd(pwd: impl AsRef<Path>) -> Result<String, Error> {
     }
 }
 
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 fn format_duration(
     time_start: DateTime<Utc>,
     time_finished: DateTime<Utc>,

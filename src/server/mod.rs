@@ -45,7 +45,7 @@ use std::{
 use thiserror::Error;
 use uuid::Uuid;
 
-const BUFFER_SIZE: usize = 65_527;
+const BUFFER_SIZE: usize = 16_384;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -155,7 +155,7 @@ impl Server {
 
             let client = client::new(socket_path.clone());
             if let Err(err) = client.send(&Message::Stop) {
-                warn!("{}", err);
+                warn!("{err}");
             }
         })
         .map_err(Error::SetupCtrlHandler)?;
@@ -176,7 +176,7 @@ impl Server {
                 }
 
                 if let Err(err) = Self::receive(&socket, &data_sender) {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
             }
 
@@ -215,7 +215,7 @@ impl Server {
                 if let Err(err) =
                     Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
                 {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
             }
 
@@ -223,7 +223,7 @@ impl Server {
                 if let Err(err) =
                     Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
                 {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
             }
 
@@ -251,7 +251,7 @@ impl Server {
 
                 let client = client::new(socket_path.as_ref().to_path_buf());
                 if let Err(err) = client.send(&Message::Stop) {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
 
                 Ok(())
