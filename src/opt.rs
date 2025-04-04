@@ -185,7 +185,7 @@ struct DefaultArgs {
     command_text: Option<Regex>,
 
     /// Only print entries not containing the given regex
-    #[clap(short = 'T', long = "text_excluded")]
+    #[clap(short = 'T', long = "text-excluded", alias = "text_excluded")]
     command_text_excluded: Option<Regex>,
 
     /// Only print entries that have been executed in the current directory
@@ -344,7 +344,7 @@ impl Opt {
         let session = Display::should_show(self.default_args.show_session);
         let status = Display::should_show(self.default_args.show_status);
 
-        pretty_env_logger::init();
+        env_logger::init();
 
         sub_command.map_or_else(
             || {
