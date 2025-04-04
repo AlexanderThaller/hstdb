@@ -53,9 +53,7 @@ fn default_data_dir() -> PathBuf {
 
 fn default_cache_path() -> PathBuf {
     let project_dir = project_dir();
-    let cache_path = project_dir.cache_dir().join("server");
-
-    cache_path
+    project_dir.cache_dir().join("server")
 }
 
 fn default_histdb_sqlite_path() -> PathBuf {
@@ -75,20 +73,16 @@ fn default_socket_path() -> PathBuf {
 
     let fallback_path = PathBuf::from("/tmp/hstdb/");
 
-    let socket_path = project_dir
+    project_dir
         .runtime_dir()
         .unwrap_or(&fallback_path)
-        .join("server_socket");
-
-    socket_path
+        .join("server_socket")
 }
 
 fn default_config_path() -> PathBuf {
     let project_dir = project_dir();
 
-    let socket_path = project_dir.config_dir().join("config.toml");
-
-    socket_path
+    project_dir.config_dir().join("config.toml")
 }
 
 #[derive(Parser, Debug)]

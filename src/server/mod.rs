@@ -140,7 +140,7 @@ impl Server {
             Self::ctrl_c_watcher(self.stopping, self.socket_path.clone())?;
         }
 
-        info!("listening on {:?}", self.socket_path);
+        info!("listening on {}", self.socket_path.display());
 
         self.wait_group.wait();
 
