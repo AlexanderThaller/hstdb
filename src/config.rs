@@ -47,8 +47,8 @@ impl Config {
             return Ok(Self::default());
         }
 
-        let config_data = std::fs::read(path).map_err(Error::ReadFile)?;
-        let config = toml::de::from_slice(&config_data).map_err(Error::ParseConfig)?;
+        let config_data = std::fs::read_to_string(path).map_err(Error::ReadFile)?;
+        let config = toml::de::from_str(&config_data).map_err(Error::ParseConfig)?;
 
         Ok(config)
     }

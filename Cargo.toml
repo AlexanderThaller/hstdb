@@ -39,7 +39,7 @@ rusqlite = { version = "0.34", optional = true }
 serde = { version = "1", features = ["derive"] }
 sled = "0.34"
 thiserror = "2"
-toml = "0.5"
+toml = "0.8"
 uuid = { version = "1", features = ["serde", "v4"] }
 exitcode = "1.1.2"
 
