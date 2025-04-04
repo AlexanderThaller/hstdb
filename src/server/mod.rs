@@ -34,11 +34,11 @@ use std::{
         PathBuf,
     },
     sync::{
+        Arc,
         atomic::{
             AtomicBool,
             Ordering,
         },
-        Arc,
     },
     thread,
 };

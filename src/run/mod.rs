@@ -6,16 +6,16 @@ use crate::{
     entry::Entry,
     message,
     message::{
-        session_id_from_env,
         CommandFinished,
         CommandStart,
         Message,
+        session_id_from_env,
     },
     server,
     store,
     store::{
-        filter,
         Filter,
+        filter,
     },
 };
 use chrono::{
@@ -137,19 +137,11 @@ impl Display {
     }
 
     pub const fn should_hide(b: bool) -> Self {
-        if b {
-            Self::Hide
-        } else {
-            Self::Show
-        }
+        if b { Self::Hide } else { Self::Show }
     }
 
     pub const fn should_show(b: bool) -> Self {
-        if b {
-            Self::Show
-        } else {
-            Self::Hide
-        }
+        if b { Self::Show } else { Self::Hide }
     }
 }
 

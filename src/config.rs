@@ -1,6 +1,6 @@
 use log::{
-    debug,
     LevelFilter,
+    debug,
 };
 use std::path::Path;
 use thiserror::Error;
