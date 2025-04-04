@@ -107,7 +107,7 @@ fn write_entry() {
     let start_data = CommandStart {
         command: "Test".to_string(),
         pwd: PathBuf::from("/tmp"),
-        session_id: session_id.clone(),
+        session_id,
         time_stamp: Utc::now(),
         user: "testuser".to_string(),
         hostname: "testhostname".to_string(),
@@ -168,7 +168,7 @@ fn write_entry_whitespace() {
     let start_data = CommandStart {
         command: r#"Test\nTest\nTest      "#.to_string(),
         pwd: PathBuf::from("/tmp"),
-        session_id: session_id.clone(),
+        session_id,
         time_stamp: Utc::now(),
         user: "testuser".to_string(),
         hostname: "testhostname".to_string(),
@@ -278,7 +278,7 @@ fn write_empty_command() {
     let start_data = CommandStart {
         command: "".to_string(),
         pwd: PathBuf::from("/tmp"),
-        session_id: session_id.clone(),
+        session_id,
         time_stamp: Utc::now(),
         user: "testuser".to_string(),
         hostname: "testhostname".to_string(),
@@ -336,7 +336,7 @@ fn write_newline_command() {
         let start_data = CommandStart {
             command,
             pwd: PathBuf::from("/tmp"),
-            session_id: session_id.clone(),
+            session_id,
             time_stamp: Utc::now(),
             user: "testuser".to_string(),
             hostname: "testhostname".to_string(),
