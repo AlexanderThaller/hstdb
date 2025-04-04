@@ -1,6 +1,7 @@
 pub mod builder;
 pub mod db;
 
+use bincode::serde::Compat;
 pub use builder::{
     Builder,
     Error as BuilderError,
@@ -33,18 +34,18 @@ use std::{
         PathBuf,
     },
     sync::{
+        Arc,
         atomic::{
             AtomicBool,
             Ordering,
         },
-        Arc,
     },
     thread,
 };
 use thiserror::Error;
 use uuid::Uuid;
 
-const BUFFER_SIZE: usize = 65_527;
+const BUFFER_SIZE: usize = 16_384;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -55,7 +56,7 @@ pub enum Error {
     SendBuffer(flume::SendError<Vec<u8>>),
 
     #[error("can not deserialize message: {0}")]
-    DeserializeMessage(bincode::Error),
+    DeserializeMessage(bincode::error::DecodeError),
 
     #[error("can not receive data from channel: {0}")]
     ReceiveData(flume::RecvError),
@@ -139,7 +140,7 @@ impl Server {
             Self::ctrl_c_watcher(self.stopping, self.socket_path.clone())?;
         }
 
-        info!("listening on {:?}", self.socket_path);
+        info!("listening on {}", self.socket_path.display());
 
         self.wait_group.wait();
 
@@ -154,7 +155,7 @@ impl Server {
 
             let client = client::new(socket_path.clone());
             if let Err(err) = client.send(&Message::Stop) {
-                warn!("{}", err);
+                warn!("{err}");
             }
         })
         .map_err(Error::SetupCtrlHandler)?;
@@ -175,7 +176,7 @@ impl Server {
                 }
 
                 if let Err(err) = Self::receive(&socket, &data_sender) {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
             }
 
@@ -214,7 +215,7 @@ impl Server {
                 if let Err(err) =
                     Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
                 {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
             }
 
@@ -222,7 +223,7 @@ impl Server {
                 if let Err(err) =
                     Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
                 {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
             }
 
@@ -240,15 +241,17 @@ impl Server {
         socket_path: impl AsRef<Path>,
     ) -> Result<(), Error> {
         let data = data_receiver.recv().map_err(Error::ReceiveData)?;
-        let message = bincode::deserialize(&data).map_err(Error::DeserializeMessage)?;
+        let (message, _): (Compat<Message>, _) =
+            bincode::decode_from_slice(&data, bincode::config::standard())
+                .map_err(Error::DeserializeMessage)?;
 
-        match message {
+        match message.0 {
             Message::Stop => {
                 stopping.store(true, Ordering::SeqCst);
 
                 let client = client::new(socket_path.as_ref().to_path_buf());
                 if let Err(err) = client.send(&Message::Stop) {
-                    warn!("{}", err);
+                    warn!("{err}");
                 }
 
                 Ok(())

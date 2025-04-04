@@ -1,6 +1,6 @@
 use super::{
-    db,
     Server,
+    db,
 };
 use crate::store;
 use crossbeam_utils::sync::WaitGroup;
@@ -8,8 +8,8 @@ use std::{
     os::unix::net::UnixDatagram,
     path::PathBuf,
     sync::{
-        atomic::AtomicBool,
         Arc,
+        atomic::AtomicBool,
     },
 };
 use thiserror::Error;

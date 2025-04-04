@@ -1,7 +1,10 @@
+#![forbid(unsafe_code)]
+#![warn(clippy::allow_attributes)]
+#![warn(clippy::allow_attributes_without_reason)]
+#![warn(clippy::dbg_macro)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::unwrap_used)]
 #![warn(rust_2018_idioms, unused_lifetimes, missing_debug_implementations)]
-#![forbid(unsafe_code)]
 
 use clap::Parser;
 
@@ -18,7 +21,7 @@ use log::error;
 use opt::Opt;
 
 fn main() {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
 
     match opt.run() {
         Err(run::Error::WriteStdout(io_err)) => {
@@ -26,8 +29,8 @@ fn main() {
             if io_err.kind() == std::io::ErrorKind::BrokenPipe {}
         }
 
-        Err(err) => error!("{}", err),
+        Err(err) => error!("{err}"),
 
-        Ok(_) => (),
+        Ok(()) => (),
     }
 }

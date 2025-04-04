@@ -1,11 +1,6 @@
 use std::path::PathBuf;
 
 use clap::{
-    AppSettings::{
-        ColoredHelp,
-        GlobalVersion,
-        NextLineHelp,
-    },
     CommandFactory,
     Parser,
     Subcommand,
@@ -58,9 +53,7 @@ fn default_data_dir() -> PathBuf {
 
 fn default_cache_path() -> PathBuf {
     let project_dir = project_dir();
-    let cache_path = project_dir.cache_dir().join("server");
-
-    cache_path
+    project_dir.cache_dir().join("server")
 }
 
 fn default_histdb_sqlite_path() -> PathBuf {
@@ -80,20 +73,16 @@ fn default_socket_path() -> PathBuf {
 
     let fallback_path = PathBuf::from("/tmp/hstdb/");
 
-    let socket_path = project_dir
+    project_dir
         .runtime_dir()
         .unwrap_or(&fallback_path)
-        .join("server_socket");
-
-    socket_path
+        .join("server_socket")
 }
 
 fn default_config_path() -> PathBuf {
     let project_dir = project_dir();
 
-    let socket_path = project_dir.config_dir().join("config.toml");
-
-    socket_path
+    project_dir.config_dir().join("config.toml")
 }
 
 #[derive(Parser, Debug)]
@@ -174,7 +163,10 @@ struct DataDir {
     data_dir: PathBuf,
 }
 
-#[allow(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "this is a cli app and its fine if there are a lot of bools"
+)]
 #[derive(Parser, Debug)]
 struct DefaultArgs {
     #[clap(flatten)]
@@ -209,7 +201,7 @@ struct DefaultArgs {
     no_subdirs: bool,
 
     /// Filter by given hostname
-    #[clap(long, conflicts_with = "all-hosts")]
+    #[clap(long, conflicts_with = "all_hosts")]
     hostname: Option<String>,
 
     /// Filter by given session
@@ -310,14 +302,12 @@ enum SubCommand {
 #[derive(Parser, Debug)]
 pub struct CompletionOpts {
     /// For which shell to generate the autocomplete
-    #[clap(arg_enum, value_parser, default_value = "zsh", possible_values = ["zsh"])]
+    #[clap(value_parser, default_value = "zsh")]
     shell: clap_complete::Shell,
 }
 
 #[derive(Parser, Debug)]
-#[clap(
-    version, about, global_settings = &[ColoredHelp, NextLineHelp, GlobalVersion]
-)]
+#[clap(version, about)]
 pub struct Opt {
     #[clap(flatten)]
     default_args: DefaultArgs,
@@ -327,6 +317,7 @@ pub struct Opt {
 }
 
 impl Opt {
+    #[expect(clippy::result_large_err, reason = "we will fix this if we need to")]
     pub fn run(self) -> Result<(), run::Error> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;
@@ -353,9 +344,6 @@ impl Opt {
         let session = Display::should_show(self.default_args.show_session);
         let status = Display::should_show(self.default_args.show_status);
 
-        if std::env::var_os("RUST_LOG").is_none() {
-            std::env::set_var("RUST_LOG", config.log_level.as_str());
-        }
         pretty_env_logger::init();
 
         sub_command.map_or_else(
