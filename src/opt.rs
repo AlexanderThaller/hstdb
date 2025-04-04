@@ -344,7 +344,7 @@ impl Opt {
         let session = Display::should_show(self.default_args.show_session);
         let status = Display::should_show(self.default_args.show_status);
 
-        pretty_env_logger::init();
+        env_logger::init();
 
         sub_command.map_or_else(
             || {
