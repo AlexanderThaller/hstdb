@@ -91,6 +91,12 @@ pub enum Error {
 
     #[error("can not get current user: {0}")]
     GetUser(std::env::VarError),
+
+    #[error("time start is missing")]
+    TimeStartMissing,
+
+    #[error("time finished is missing")]
+    TimeFinishedMissing,
 }
 
 #[cfg(feature = "histdb-import")]
@@ -151,21 +157,17 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
 
         let start_time = entry.start_time;
 
-        let time_start = chrono::DateTime::<Utc>::from_utc(
-            chrono::NaiveDateTime::from_timestamp(start_time, 0),
-            Utc,
-        );
+        let time_start = chrono::DateTime::<Utc>::from_timestamp(start_time, 0)
+            .ok_or(Error::TimeStartMissing)?;
 
-        let time_finished = chrono::DateTime::<Utc>::from_utc(
-            chrono::NaiveDateTime::from_timestamp(
-                start_time
-                    + entry
-                        .duration
-                        .expect("save as we already checked if duration is some earlier"),
-                0,
-            ),
-            Utc,
-        );
+        let time_finished = chrono::DateTime::<Utc>::from_timestamp(
+            start_time
+                + entry
+                    .duration
+                    .expect("save as we already checked if duration is some earlier"),
+            0,
+        )
+        .ok_or(Error::TimeFinishedMissing)?;
 
         let hostname = entry.hostname;
         let pwd = PathBuf::from(entry.pwd);
@@ -195,7 +197,10 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
     Ok(())
 }
 
-#[allow(clippy::too_many_lines)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "this function is too long and we should split it up"
+)]
 pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug)]
     struct HistfileEntry {
@@ -219,7 +224,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
 
         let line = match line {
             Err(err) => {
-                warn!("can not read line {}: {}", line_number, err);
+                warn!("can not read line {line_number}: {err}");
 
                 continue;
             }
@@ -256,15 +261,13 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
 
             let command = code_command.collect::<Vec<_>>().join(";");
 
-            let time_finished = chrono::DateTime::<Utc>::from_utc(
-                chrono::NaiveDateTime::from_timestamp(
-                    timestamp
-                        .parse()
-                        .map_err(|err| Error::ParseTimestamp(err, line_number))?,
-                    0,
-                ),
-                Utc,
-            );
+            let time_finished = chrono::DateTime::<Utc>::from_timestamp(
+                timestamp
+                    .parse()
+                    .map_err(|err| Error::ParseTimestamp(err, line_number))?,
+                0,
+            )
+            .ok_or(Error::TimeFinishedMissing)?;
 
             let result = code
                 .parse()

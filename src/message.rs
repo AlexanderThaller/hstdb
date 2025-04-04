@@ -2,10 +2,6 @@ use chrono::{
     DateTime,
     Utc,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
 use std::{
     env,
     path::PathBuf,
@@ -15,16 +11,12 @@ use uuid::Uuid;
 
 use crate::config::Config;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Message {
     Stop,
-
     Disable(Uuid),
-
     Enable(Uuid),
-
     CommandStart(CommandStart),
-
     CommandFinished(CommandFinished),
 }
 
@@ -55,7 +47,7 @@ pub enum Error {
     InvalidResult(std::num::ParseIntError),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CommandStart {
     pub command: String,
     pub pwd: PathBuf,
@@ -95,7 +87,7 @@ impl CommandStart {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CommandFinished {
     pub session_id: Uuid,
     pub time_stamp: DateTime<Utc>,

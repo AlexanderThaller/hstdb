@@ -1,5 +1,8 @@
 use crate::message::CommandStart;
-use serde::Serialize;
+use bincode::serde::{
+    BorrowCompat,
+    Compat,
+};
 use std::path::Path;
 use thiserror::Error;
 use uuid::Uuid;
@@ -13,10 +16,10 @@ pub enum Error {
     OpenDisabledSessionsDatabase(sled::Error),
 
     #[error("can not serialize data: {0}")]
-    SerializeData(bincode::Error),
+    SerializeData(bincode::error::EncodeError),
 
     #[error("can not deserialize entry: {0}")]
-    DeserializeEntry(bincode::Error),
+    DeserializeEntry(bincode::error::DecodeError),
 
     #[error("{0}")]
     Sled(#[from] sled::Error),
@@ -43,22 +46,22 @@ pub struct Db {
 
 impl Db {
     pub fn contains_entry(&self, uuid: &Uuid) -> Result<bool, Error> {
-        let key = Self::serialize(uuid)?;
+        let key = Self::serialize(BorrowCompat(uuid))?;
         let contains = self.entries.contains_key(key)?;
 
         Ok(contains)
     }
 
     pub fn is_session_disabled(&self, uuid: &Uuid) -> Result<bool, Error> {
-        let key = Self::serialize(uuid)?;
+        let key = Self::serialize(BorrowCompat(uuid))?;
         let contains = self.disabled_sessions.contains_key(key)?;
 
         Ok(contains)
     }
 
     pub fn add_entry(&self, entry: &CommandStart) -> Result<(), Error> {
-        let key = Self::serialize(&entry.session_id)?;
-        let value = Self::serialize(&entry)?;
+        let key = Self::serialize(BorrowCompat(&entry.session_id))?;
+        let value = Self::serialize(BorrowCompat(entry))?;
 
         self.entries.insert(key, value)?;
 
@@ -66,7 +69,7 @@ impl Db {
     }
 
     pub fn remove_entry(&self, uuid: &Uuid) -> Result<CommandStart, Error> {
-        let key = Self::serialize(uuid)?;
+        let key = Self::serialize(BorrowCompat(uuid))?;
 
         let data = self.entries.remove(key)?.ok_or(Error::EntryNotExist)?;
 
@@ -76,7 +79,7 @@ impl Db {
     }
 
     pub fn disable_session(&self, uuid: &Uuid) -> Result<(), Error> {
-        let key = Self::serialize(uuid)?;
+        let key = Self::serialize(BorrowCompat(uuid))?;
         let value = Self::serialize(true)?;
 
         self.disabled_sessions.insert(key, value)?;
@@ -87,22 +90,25 @@ impl Db {
     }
 
     pub fn enable_session(&self, uuid: &Uuid) -> Result<(), Error> {
-        let key = Self::serialize(uuid)?;
+        let key = Self::serialize(BorrowCompat(uuid))?;
 
         self.disabled_sessions.remove(&key)?;
 
         Ok(())
     }
 
-    fn serialize(data: impl Serialize) -> Result<Vec<u8>, Error> {
-        let bytes = bincode::serialize(&data).map_err(Error::SerializeData)?;
+    fn serialize(data: impl bincode::Encode) -> Result<Vec<u8>, Error> {
+        let bytes = bincode::encode_to_vec(&data, bincode::config::standard())
+            .map_err(Error::SerializeData)?;
 
         Ok(bytes)
     }
 
     fn deserialize_entry(data: &sled::IVec) -> Result<CommandStart, Error> {
-        let entry = bincode::deserialize(data).map_err(Error::DeserializeEntry)?;
+        let (entry, _): (Compat<CommandStart>, _) =
+            bincode::decode_from_slice(data, bincode::config::standard())
+                .map_err(Error::DeserializeEntry)?;
 
-        Ok(entry)
+        Ok(entry.0)
     }
 }

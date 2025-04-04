@@ -1,9 +1,11 @@
-use crate::message::Message;
+use bincode::serde::BorrowCompat;
 use std::{
     os::unix::net::UnixDatagram,
     path::PathBuf,
 };
 use thiserror::Error;
+
+use crate::message::Message;
 
 #[derive(Debug)]
 pub struct Client {
@@ -19,7 +21,7 @@ pub enum Error {
     ConnectSocket(std::io::Error),
 
     #[error("can not serialize message: {0}")]
-    SerializeMessage(bincode::Error),
+    SerializeMessage(bincode::error::EncodeError),
 
     #[error("can not send message to socket: {0}")]
     SendMessage(std::io::Error),
@@ -37,9 +39,10 @@ impl Client {
             .connect(&self.socket_path)
             .map_err(Error::ConnectSocket)?;
 
-        socket
-            .send(&bincode::serialize(&message).map_err(Error::SerializeMessage)?)
-            .map_err(Error::SendMessage)?;
+        let data = bincode::encode_to_vec(BorrowCompat(message), bincode::config::standard())
+            .map_err(Error::SerializeMessage)?;
+
+        socket.send(&data).map_err(Error::SendMessage)?;
 
         Ok(())
     }

@@ -22,7 +22,7 @@ pub struct Filter {
     pub command_text_excluded: Option<Regex>,
     pub count: usize,
     pub session: Option<Regex>,
-    pub filter_failed: bool,
+    pub failed: bool,
     pub find_status: Option<u16>,
 }
 
@@ -87,12 +87,12 @@ impl Filter {
         let filtered: Vec<Entry> = entries
             .into_iter()
             .filter(|entry| {
-                self.command.as_ref().map_or(true, |command| {
-                    Self::filter_command(&entry.command, command)
-                })
+                self.command
+                    .as_ref()
+                    .is_none_or(|command| Self::filter_command(&entry.command, command))
             })
             .filter(|entry| {
-                self.directory.as_ref().map_or(true, |dir| {
+                self.directory.as_ref().is_none_or(|dir| {
                     if self.no_subdirs {
                         entry.pwd == *dir
                     } else {
@@ -103,19 +103,19 @@ impl Filter {
             .filter(|entry| {
                 self.command_text
                     .as_ref()
-                    .map_or(true, |regex| regex.is_match(&entry.command))
+                    .is_none_or(|regex| regex.is_match(&entry.command))
             })
             .filter(|entry| {
                 self.command_text_excluded
                     .as_ref()
-                    .map_or(true, |regex| !regex.is_match(&entry.command))
+                    .is_none_or(|regex| !regex.is_match(&entry.command))
             })
             .filter(|entry| {
                 self.session
                     .as_ref()
-                    .map_or(true, |regex| regex.is_match(&entry.session_id.to_string()))
+                    .is_none_or(|regex| regex.is_match(&entry.session_id.to_string()))
             })
-            .filter(|entry| !self.filter_failed || entry.result == 0)
+            .filter(|entry| !self.failed || entry.result == 0)
             .filter(|entry| {
                 self.find_status
                     .and_then(|find_status| {
@@ -142,7 +142,7 @@ impl Filter {
 
     pub fn filter_failed(self, filter_failed: bool) -> Self {
         Self {
-            filter_failed,
+            failed: filter_failed,
             ..self
         }
     }
@@ -150,13 +150,7 @@ impl Filter {
     fn filter_command(entry_command: &str, command: &str) -> bool {
         entry_command
             .split('|')
-            .map(|pipe_command| {
-                pipe_command
-                    .split_whitespace()
-                    .next()
-                    .map_or(false, |entry_command| entry_command == command)
-            })
-            .any(|has_command| has_command)
+            .any(|pipe_command| pipe_command.split_whitespace().next() == Some(command))
     }
 
     pub fn find_status(self, find_status: Option<u16>) -> Self {
@@ -184,8 +178,8 @@ mod test {
         ];
         let check_command = "tr";
 
-        cases.into_iter().for_each(|(entry_command, result)| {
-            assert_eq!(Filter::filter_command(entry_command, check_command), result)
-        });
+        for (entry_command, result) in cases {
+            assert_eq!(Filter::filter_command(entry_command, check_command), result);
+        }
     }
 }
