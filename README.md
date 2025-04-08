@@ -33,7 +33,9 @@ cargo install hstdb
 
 ## Archlinux
 
-Install from the aur: https://aur.archlinux.org/packages/hstdb/
+Install from AUR:
+* https://aur.archlinux.org/packages/hstdb/
+* https://aur.archlinux.org/packages/hstdb-git/
 
 ## First Start
 
