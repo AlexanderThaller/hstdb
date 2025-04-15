@@ -1,6 +1,6 @@
 # hstdb
 
-[![Build Status](https://github.com/AlexanderThaller/hstdb/workflows/Rust/badge.svg?branch=main)](https://github.com/AlexanderThaller/hstdb/actions?query=workflow%3ARusteain)
+[![Rust](https://github.com/AlexanderThaller/hstdb/actions/workflows/rust.yml/badge.svg)](https://github.com/AlexanderThaller/hstdb/actions/workflows/rust.yml)
 [![crates.io](https://img.shields.io/crates/v/hstdb.svg)](https://crates.io/crates/hstdb)
 
 Better history management for zsh. Based on ideas from
@@ -33,7 +33,9 @@ cargo install hstdb
 
 ## Archlinux
 
-Install from the aur: https://aur.archlinux.org/packages/hstdb/
+Install from AUR:
+* https://aur.archlinux.org/packages/hstdb/
+* https://aur.archlinux.org/packages/hstdb-git/
 
 ## First Start
 
