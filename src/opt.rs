@@ -158,6 +158,7 @@ struct DataDir {
     #[clap(
         short,
         long,
+        env = "HISTDBRS_DATA_DIR",
         default_value_os_t = default_data_dir()
     )]
     data_dir: PathBuf,
