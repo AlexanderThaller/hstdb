@@ -31,8 +31,8 @@ impl Filter {
         self.hostname.as_ref()
     }
 
-    pub fn hostname(self, hostname: Option<String>, all_hosts: bool) -> Result<Self, Error> {
-        let current_hostname = hostname::get()
+    pub fn hostname(self, hostname: Option<String>, config_hostname: Option<String>, all_hosts: bool) -> Result<Self, Error> {
+        let system_hostname = hostname::get()
             .map_err(Error::GetHostname)?
             .to_string_lossy()
             .to_string();
@@ -40,7 +40,7 @@ impl Filter {
         let hostname = if all_hosts {
             None
         } else {
-            Some(hostname.unwrap_or(current_hostname))
+            Some(hostname.unwrap_or(config_hostname.unwrap_or(system_hostname)))
         };
 
         Ok(Self { hostname, ..self })
