@@ -350,7 +350,7 @@ impl Opt {
             || {
                 let filter = Filter::default()
                     .directory(folder, in_current, no_subdirs)?
-                    .hostname(hostname, all_hosts)?
+                    .hostname(hostname, config.hostname.clone(), all_hosts)?
                     .count(entries_count)
                     .command(command, command_text, command_text_excluded)
                     .session(session_filter)
