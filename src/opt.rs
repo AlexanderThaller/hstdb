@@ -127,7 +127,7 @@ struct ImportHistdb {
     data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
-    #[clap(short, long, default_value_os_t = default_histdb_sqlite_path())]
+    #[clap(short, long, env = "HISTDB_FILE", default_value_os_t = default_histdb_sqlite_path())]
     import_file: PathBuf,
 }
 
@@ -137,7 +137,7 @@ struct ImportHistfile {
     data_dir: DataDir,
 
     /// Path to the existing zsh histfile file
-    #[clap(short, long, default_value_os_t = default_zsh_histfile_path())]
+    #[clap(short, long, env = "HISTFILE", default_value_os_t = default_zsh_histfile_path())]
     import_file: PathBuf,
 }
 
