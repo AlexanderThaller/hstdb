@@ -133,10 +133,31 @@ impl Db {
 
     /// Marks a session as disabled and removes any in-flight command for it.
     pub fn disable_session(&self, uuid: &Uuid) {
-        self.disabled_sessions
-            .write()
-            .expect("Failed to get write lock for disabled_sessions")
-            .insert(*uuid);
+        {
+            // Remove any in-flight command for this session, if present.
+            let mut entries = self
+                .entries
+                .write()
+                .expect("Failed to get write lock for entries");
+
+            entries.remove(uuid);
+        }
+
+        {
+            // Mark the session as disabled.
+            let mut disabled_sessions = self
+                .disabled_sessions
+                .write()
+                .expect("Failed to get write lock for disabled_sessions");
+
+            disabled_sessions.insert(*uuid);
+        }
+
+        // Persist both the updated in-flight entries and disabled sessions.
+        self.persist_entries()
+            .expect("Failed to persist entries after disabling session");
+        self.persist_disabled_sessions()
+            .expect("Failed to persist disabled sessions after disabling session");
     }
 
     /// Re-enables history recording for `uuid`.
