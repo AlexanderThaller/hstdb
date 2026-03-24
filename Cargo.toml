@@ -21,7 +21,7 @@ histdb-import = ["rusqlite"]
 generate-readme = ["dep:askama"]
 
 [dependencies]
-askama = { version = "0.14", optional = true }
+askama = { version = "0.15", optional = true }
 bitcode = { version = "0.6", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap_complete = "4"
