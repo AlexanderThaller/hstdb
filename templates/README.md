@@ -8,11 +8,11 @@ Better history management for zsh. Based on ideas from
 
 Licensed under MIT.
 
-It was mainly written because the sqlite merging broke a few to many times for
-me and using a sqlite database seemed overkill.
+It was mainly written because the sqlite merging broke a few too many
+times for me and using an sqlite database seemed overkill.
 
-The tool is just writing CSV files for each host which makes syncing them via
-git pretty painless.
+The tool is just writing CSV files for each host which makes syncing
+them via git pretty painless.
 
 Has pretty much the same feature set as zsh-histdb:
 
