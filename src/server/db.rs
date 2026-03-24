@@ -125,9 +125,6 @@ impl Db {
             .remove(uuid)
             .ok_or(Error::EntryNotExist)?;
 
-        self.persist_entries()
-            .wrap_err("Failed to persist entries after removing entry")?;
-
         Ok(entry)
     }
 
