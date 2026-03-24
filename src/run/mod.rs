@@ -163,7 +163,8 @@ pub fn default(
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Regenerates `README.md` help sections from the clap command tree.
 pub fn generate_readme(readme_path: PathBuf) -> Result<(), Error> {
-    readme::generate(readme_path).map_err(Error::Readme)
+    readme::generate(readme_path)?;
+    Ok(())
 }
 
 /// Prints entries as tab-separated rows.
