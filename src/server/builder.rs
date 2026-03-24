@@ -3,6 +3,7 @@ use super::{
     db,
 };
 use crate::store;
+use color_eyre::eyre::WrapErr;
 use crossbeam_utils::sync::WaitGroup;
 use std::{
     os::unix::net::UnixDatagram,
@@ -26,8 +27,8 @@ pub enum Error {
     CreateSocketPathParent(std::io::Error),
 
     /// Binding the Unix socket failed.
-    #[error("can not bind to socket: {0}")]
-    BindSocket(std::io::Error),
+    #[error("can not bind to socket at path {0}: {1}")]
+    BindSocket(PathBuf, std::io::Error),
 
     /// Initializing the transient server database failed.
     #[error("{0}")]
@@ -37,7 +38,7 @@ pub enum Error {
 /// Builder for creating a configured [`Server`](super::Server).
 #[derive(Debug)]
 pub struct Builder {
-    pub(super) cache_dir: PathBuf,
+    pub(super) state_dir: PathBuf,
     pub(super) data_dir: PathBuf,
     pub(super) socket: PathBuf,
     pub(super) handle_ctrlc: bool,
@@ -45,12 +46,13 @@ pub struct Builder {
 
 impl Builder {
     /// Opens the transient database, binds the socket, and returns a server.
-    pub fn build(self) -> Result<Server, Error> {
-        let db = db::new(self.cache_dir)?;
+    pub fn build(self) -> color_eyre::Result<Server> {
+        let db = db::new(self.state_dir).wrap_err("Failed to initialize server database")?;
 
         let socket_path_parent = self.socket.parent().ok_or(Error::NoSocketPathParent)?;
         std::fs::create_dir_all(socket_path_parent).map_err(Error::CreateSocketPathParent)?;
-        let socket = UnixDatagram::bind(&self.socket).map_err(Error::BindSocket)?;
+        let socket = UnixDatagram::bind(&self.socket)
+            .map_err(|err| Error::BindSocket(self.socket.clone(), err))?;
 
         let store = store::new(self.data_dir);
 

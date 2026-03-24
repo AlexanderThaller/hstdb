@@ -7,26 +7,6 @@ pub mod db;
 
 pub use builder::Builder;
 
-use crate::{
-    client,
-    entry::Entry,
-    message::{
-        CommandFinished,
-        CommandStart,
-        Message,
-    },
-    store::Store,
-};
-use crossbeam_utils::sync::WaitGroup;
-use db::Db;
-use flume::{
-    Receiver,
-    Sender,
-};
-use log::{
-    info,
-    warn,
-};
 use std::{
     os::unix::net::UnixDatagram,
     path::{
@@ -42,8 +22,34 @@ use std::{
     },
     thread,
 };
+
+use color_eyre::eyre::{
+    WrapErr,
+    bail,
+};
+use crossbeam_utils::sync::WaitGroup;
+use db::Db;
+use flume::{
+    Receiver,
+    Sender,
+};
+use log::{
+    info,
+    warn,
+};
 use thiserror::Error;
 use uuid::Uuid;
+
+use crate::{
+    client,
+    entry::Entry,
+    message::{
+        CommandFinished,
+        CommandStart,
+        Message,
+    },
+    store::Store,
+};
 
 const BUFFER_SIZE: usize = 16_384;
 
@@ -83,33 +89,13 @@ pub enum Error {
     #[error("command for session not started yet")]
     SessionCommandNotStarted,
 
-    /// Checking whether a session has an in-flight command failed.
-    #[error("can not check if key exists in db: {0}")]
-    CheckContainsEntry(db::Error),
-
-    /// Checking whether a session is disabled failed.
-    #[error("can not check if session is disabled in db: {0}")]
-    CheckDisabledSession(db::Error),
-
     /// Recording was skipped because the session is currently disabled.
     #[error("not recording because session {0} is disabled")]
     DisabledSession(Uuid),
 
-    /// Storing a started command in the transient database failed.
-    #[error("can not add entry to db: {0}")]
-    AddDbEntry(db::Error),
-
-    /// Removing a started command from the transient database failed.
-    #[error("can not remove entry from db: {0}")]
-    RemoveDbEntry(db::Error),
-
     /// Persisting a finished entry to the store failed.
     #[error("can not add to store: {0}")]
     AddStore(crate::store::Error),
-
-    /// Accessing the transient database failed.
-    #[error("db error: {0}")]
-    Db(#[from] db::Error),
 }
 
 /// Running `hstdb` server instance.
@@ -127,13 +113,13 @@ pub struct Server {
 #[must_use]
 /// Creates a [`Builder`] for a server bound to the given paths.
 pub fn builder(
-    cache_dir: PathBuf,
     data_dir: PathBuf,
+    state_dir: PathBuf,
     socket: PathBuf,
     handle_ctrlc: bool,
 ) -> Builder {
     Builder {
-        cache_dir,
+        state_dir,
         data_dir,
         socket,
         handle_ctrlc,
@@ -142,11 +128,11 @@ pub fn builder(
 
 impl Server {
     /// Starts the receiver and processor threads and blocks until shutdown.
-    pub fn run(self) -> Result<(), Error> {
+    pub fn run(self) -> color_eyre::Result<()> {
         let data_sender = Self::start_processor(
             Arc::clone(&self.stopping),
             self.wait_group.clone(),
-            self.db,
+            self.db.clone(),
             self.store,
             self.socket_path.clone(),
         );
@@ -167,6 +153,10 @@ impl Server {
         self.wait_group.wait();
 
         std::fs::remove_file(&self.socket_path).map_err(Error::RemoveSocket)?;
+
+        self.db
+            .persist()
+            .wrap_err("Failed to persist server database")?;
 
         Ok(())
     }
@@ -261,7 +251,7 @@ impl Server {
         db: &Db,
         store: &Store,
         socket_path: impl AsRef<Path>,
-    ) -> Result<(), Error> {
+    ) -> color_eyre::Result<()> {
         let data = data_receiver.recv().map_err(Error::ReceiveData)?;
         let message = bitcode::deserialize(&data).map_err(Error::DeserializeMessage)?;
 
@@ -278,49 +268,45 @@ impl Server {
             }
             Message::CommandStart(data) => Self::command_start(db, &data),
             Message::CommandFinished(data) => Self::command_finished(db, store, &data),
-            Message::Disable(uuid) => Self::disable_session(db, &uuid),
-            Message::Enable(uuid) => Self::enable_session(db, &uuid),
+            Message::Disable(uuid) => {
+                Self::disable_session(db, &uuid);
+
+                Ok(())
+            }
+            Message::Enable(uuid) => {
+                Self::enable_session(db, &uuid);
+
+                Ok(())
+            }
         }
     }
 
-    fn command_start(db: &Db, data: &CommandStart) -> Result<(), Error> {
-        if db
-            .contains_entry(&data.session_id)
-            .map_err(Error::CheckContainsEntry)?
-        {
-            return Err(Error::SessionCommandAlreadyStarted);
+    fn command_start(db: &Db, data: &CommandStart) -> color_eyre::Result<()> {
+        if db.contains_entry(&data.session_id) {
+            bail!(Error::SessionCommandAlreadyStarted)
         }
 
-        if db
-            .is_session_disabled(&data.session_id)
-            .map_err(Error::CheckDisabledSession)?
-        {
-            return Err(Error::DisabledSession(data.session_id));
+        if db.is_session_disabled(&data.session_id) {
+            bail!(Error::DisabledSession(data.session_id))
         }
 
-        db.add_entry(data).map_err(Error::AddDbEntry)?;
+        db.add_entry(data);
 
         Ok(())
     }
 
-    fn command_finished(db: &Db, store: &Store, data: &CommandFinished) -> Result<(), Error> {
-        if db
-            .is_session_disabled(&data.session_id)
-            .map_err(Error::CheckDisabledSession)?
-        {
-            return Err(Error::DisabledSession(data.session_id));
+    fn command_finished(db: &Db, store: &Store, data: &CommandFinished) -> color_eyre::Result<()> {
+        if db.is_session_disabled(&data.session_id) {
+            bail!(Error::DisabledSession(data.session_id))
         }
 
-        if !db
-            .contains_entry(&data.session_id)
-            .map_err(Error::CheckContainsEntry)?
-        {
-            return Err(Error::SessionCommandNotStarted);
+        if !db.contains_entry(&data.session_id) {
+            bail!(Error::SessionCommandNotStarted)
         }
 
         let start = db
             .remove_entry(&data.session_id)
-            .map_err(Error::RemoveDbEntry)?;
+            .wrap_err("Failed to remove command start from db")?;
 
         let entry = Entry::from_messages(start, data);
 
@@ -329,15 +315,11 @@ impl Server {
         Ok(())
     }
 
-    fn disable_session(db: &Db, uuid: &Uuid) -> Result<(), Error> {
-        db.disable_session(uuid)?;
-
-        Ok(())
+    fn disable_session(db: &Db, uuid: &Uuid) {
+        db.disable_session(uuid);
     }
 
-    fn enable_session(db: &Db, uuid: &Uuid) -> Result<(), Error> {
-        db.enable_session(uuid)?;
-
-        Ok(())
+    fn enable_session(db: &Db, uuid: &Uuid) {
+        db.enable_session(uuid);
     }
 }

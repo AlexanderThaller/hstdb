@@ -36,8 +36,8 @@ use uuid::Uuid;
 struct TestClient {
     client: Client,
     barrier_stop: Arc<Barrier>,
-    cache_dir: PathBuf,
     data_dir: PathBuf,
+    state_dir: PathBuf,
 
     keep_datadir: bool,
 }
@@ -46,7 +46,7 @@ impl Drop for TestClient {
     fn drop(&mut self) {
         self.barrier_stop.wait();
 
-        std::fs::remove_dir_all(&self.cache_dir).expect("Failed to remove cache dir");
+        std::fs::remove_dir_all(&self.state_dir).expect("Failed to remove state dir");
 
         if !self.keep_datadir {
             std::fs::remove_dir_all(&self.data_dir).expect("Failed to remove data dir");
@@ -55,12 +55,12 @@ impl Drop for TestClient {
 }
 
 fn create_client_and_server(keep_datadir: bool) -> TestClient {
-    let cache_dir = tempfile::tempdir()
-        .expect("Failed to create cache dir")
-        .keep();
-
     let data_dir = tempfile::tempdir()
         .expect("Failed to create data dir")
+        .keep();
+
+    let state_dir = tempfile::tempdir()
+        .expect("Failed to create state dir")
         .keep();
 
     let socket = tempfile::NamedTempFile::new()
@@ -75,11 +75,11 @@ fn create_client_and_server(keep_datadir: bool) -> TestClient {
         let barrier_start = Arc::clone(&barrier_start);
         let barrier_stop = Arc::clone(&barrier_stop);
 
-        let cache_dir = cache_dir.clone();
         let data_dir = data_dir.clone();
+        let state_dir = state_dir.clone();
         let socket = socket.clone();
 
-        let server = server::builder(cache_dir, data_dir, socket, false)
+        let server = server::builder(data_dir, state_dir, socket, false)
             .build()
             .expect("Failed to build server");
 
@@ -97,8 +97,8 @@ fn create_client_and_server(keep_datadir: bool) -> TestClient {
     TestClient {
         client,
         barrier_stop,
-        cache_dir,
         data_dir,
+        state_dir,
         keep_datadir,
     }
 }
