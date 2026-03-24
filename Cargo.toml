@@ -6,7 +6,7 @@ authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 edition = "2024"
 rust-version = "1.88.0"
 
-description = "Better history management for zsh. Based on ideas from [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb)."
+description = "Better history management for zsh."
 documentation = "https://docs.rs/hstdb/"
 homepage = "https://github.com/AlexanderThaller/hstdb"
 license = "MIT"
