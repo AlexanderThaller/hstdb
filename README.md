@@ -57,7 +57,7 @@ Or send SIGTERM/SIGINT (Ctrl+C) to stop the server.
 
 You can also use the systemd unit file in
 [`hstdb.service`](resources/hstdb.service) which you can copy to
-`"$XDG_CONFIG_HOME/systemd` (usually `$HOME/.config/systemd`) and
+`$XDG_CONFIG_HOME/systemd` (usually `$HOME/.config/systemd`) and
 enable/start with the following:
 
 ```
@@ -67,7 +67,7 @@ systemctl --user start hstdb.service
 ```
 
 After that you can add the following to your `.zshrc` to enable hstdb for
-you shell.
+your shell.
 
 ```
 eval "$(hstdb init)"
@@ -78,116 +78,110 @@ shell.
 
 ## Usage
 
-Help output of default command:
+The help output below is generated from `clap` and can be refreshed with
+`cargo run --features generate-readme -- generate-readme`.
 
+<!-- BEGIN GENERATED SECTION: usage-help -->
+```text
+Better history management for zsh. Based on ideas from [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
+
+Usage: hstdb [OPTIONS] [COMMAND]
+
+Commands:
+  zshaddhistory  Add new command for current session
+  server         Start the server
+  stop           Stop the server
+  disable        Disable history recording for current session
+  enable         Enable history recording for current session
+  precmd         Finish command for current session
+  session_id     Get new session id
+  import         Import entries from existing histdb sqlite or zsh histfile
+  init           Print out shell functions needed by hstdb and set current session id
+  bench          Run benchmark against server
+  completion     Generate autocomplete files for shells
+  help           Print this message or the help of the given subcommand(s)
+
+Options:
+  -d, --data-dir <DATA_DIR>
+          Path to folder in which to store the history files
+          
+          [env: HSTDB_DATA_DIR=]
+          [default: $XDG_DATA_HOME/hstdb]
+
+  -e, --entries-count <ENTRIES_COUNT>
+          How many entries to print
+          
+          [default: 25]
+
+  -c, --command <COMMAND>
+          Only print entries beginning with the given command
+
+  -t, --text <COMMAND_TEXT>
+          Only print entries containing the given regex
+
+  -T, --text-excluded <COMMAND_TEXT_EXCLUDED>
+          Only print entries not containing the given regex
+
+  -i, --in
+          Only print entries that have been executed in the current directory
+
+  -f, --folder <FOLDER>
+          Only print entries that have been executed in the given directory
+
+      --no-subdirs
+          Exclude subdirectories when filtering by folder
+
+      --hostname <HOSTNAME>
+          Filter by given hostname
+
+      --session <SESSION>
+          Filter by given session
+
+      --all-hosts
+          Print all hosts
+
+      --disable-formatting
+          Disable fancy formatting
+
+      --show-host
+          Print host column
+
+      --show-status
+          Print returncode of command
+
+      --show-duration
+          Show how long the command ran
+
+      --show-pwd
+          Show directory in which the command was run
+
+      --show-session
+          Show session id for command
+
+      --hide-header
+          Disable printing of header
+
+      --filter-failed
+          Filter out failed commands (return code not 0)
+
+      --find-status <FIND_STATUS>
+          Find commands with the given return code
+
+      --config-path <CONFIG_PATH>
+          Path to the configuration file
+          
+          [env: HSTDB_CONFIG_PATH=]
+          [default: $XDG_CONFIG_HOME/hstdb/config.toml]
+
+  -h, --help
+          Print help
+
+  -V, --version
+          Print version
 ```
-hstdb 2.1.0
-Better history management for zsh. Based on ideas from
-[https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
+<!-- END GENERATED SECTION: usage-help -->
 
-USAGE:
-    hstdb [OPTIONS] [SUBCOMMAND]
-
-OPTIONS:
-        --all-hosts
-            Print all hosts
-
-    -c, --command <COMMAND>
-            Only print entries beginning with the given command
-
-        --config-path <CONFIG_PATH>
-            Path to the socket for communication with the server [env: HISTDBRS_CONFIG_PATH=]
-            [default: $XDG_CONFIG_HOME/hstdb/config.toml]
-
-    -d, --data-dir <DATA_DIR>
-            Path to folder in which to store the history files [default:
-            $XDG_DATA_HOME/hstdb]
-
-        --disable-formatting
-            Disable fancy formatting
-
-    -e, --entries-count <ENTRIES_COUNT>
-            How many entries to print [default: 25]
-
-    -f, --folder <FOLDER>
-            Only print entries that have been executed in the given directory
-
-        --filter-failed
-            Filter out failed commands (return code not 0)
-
-        --find-status <FIND_STATUS>
-            Find commands with the given return code
-
-    -h, --help
-            Print help information
-
-        --hide-header
-            Disable printing of header
-
-        --hostname <HOSTNAME>
-            Filter by given hostname
-
-    -i, --in
-            Only print entries that have been executed in the current directory
-
-        --no-subdirs
-            Exclude subdirectories when filtering by folder
-
-        --session <SESSION>
-            Filter by given session
-
-        --show-duration
-            Show how long the command ran
-
-        --show-host
-            Print host column
-
-        --show-pwd
-            Show directory in which the command was run
-
-        --show-session
-            Show session id for command
-
-        --show-status
-            Print returncode of command
-
-    -t, --text <COMMAND_TEXT>
-            Only print entries containing the given regex
-
-    -T, --text_excluded <COMMAND_TEXT_EXCLUDED>
-            Only print entries not containing the given regex
-
-    -V, --version
-            Print version information
-
-SUBCOMMANDS:
-    bench
-            Run benchmark against server
-    completion
-            Generate autocomplete files for shells
-    disable
-            Disable history recording for current session
-    enable
-            Enable history recording for current session
-    help
-            Print this message or the help of the given subcommand(s)
-    import
-            Import entries from existing histdb sqlite or zsh histfile
-    init
-            Print out shell functions needed by histdb and set current session id
-    precmd
-            Finish command for current session
-    server
-            Start the server
-    session_id
-            Get new session id
-    stop
-            Stop the server
-    zshaddhistory
-            Add new command for current session
-```
-
-The most basic command ist just running `hstdb` without any arguments:
+The most basic command is just running `hstdb` without any arguments:
 
 ```
 » hstdb
@@ -242,32 +236,34 @@ An example with all configuration options can be found in
 
 ### zsh-histdb
 
-```
-» histdb import histdb -h
-hstdb-import-histdb 0.1.0
+<!-- BEGIN GENERATED SECTION: import-histdb-help -->
+```text
 Import entries from existing histdb sqlite file
 
-USAGE:
-    hstdb import histdb [OPTIONS]
+Usage: hstdb import histdb [OPTIONS]
 
-FLAGS:
-    -h, --help
-            Prints help information
+Options:
+  -d, --data-dir <DATA_DIR>
+          Path to folder in which to store the history files
+          
+          [env: HSTDB_DATA_DIR=]
+          [default: $XDG_DATA_HOME/hstdb]
 
+  -i, --import-file <IMPORT_FILE>
+          Path to the existing histdb sqlite file
+          
+          [default: $HOME/.histdb/zsh-history.db]
 
-OPTIONS:
-    -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $XDG_DATA_HOME/hstdb]
-
-    -i, --import-file <import-file>
-            Path to the existing histdb sqlite file [default: $HOME/.histdb/zsh-history.db]
+  -h, --help
+          Print help
 ```
+<!-- END GENERATED SECTION: import-histdb-help -->
 
 If the defaults for the `data-dir` and the `import-file` are fine you can just
 run the following command:
 
 ```
-histdb import histdb
+hstdb import histdb
 ```
 
 This will create CSV files for each `hostname` found in the sqlite database. It
@@ -276,32 +272,34 @@ same session should still be grouped together.
 
 ### zsh histfile
 
-```
-» histdb import histfile -h
-hstdb-import-histfile 0.1.0
+<!-- BEGIN GENERATED SECTION: import-histfile-help -->
+```text
 Import entries from existing zsh histfile
 
-USAGE:
-    hstdb import histfile [OPTIONS]
+Usage: hstdb import histfile [OPTIONS]
 
-FLAGS:
-    -h, --help
-            Prints help information
+Options:
+  -d, --data-dir <DATA_DIR>
+          Path to folder in which to store the history files
+          
+          [env: HSTDB_DATA_DIR=]
+          [default: $XDG_DATA_HOME/hstdb]
 
+  -i, --import-file <IMPORT_FILE>
+          Path to the existing zsh histfile file
+          
+          [default: $HOME/.histfile]
 
-OPTIONS:
-    -d, --data-dir <data-dir>
-            Path to folder in which to store the history files [default: $XDG_DATA_HOME/hstdb]
-
-    -i, --import-file <import-file>
-            Path to the existing zsh histfile file [default: $HOME/.histfile]
+  -h, --help
+          Print help
 ```
+<!-- END GENERATED SECTION: import-histfile-help -->
 
 If the defaults for the `data-dir` and the `import-file` are fine you can just
 run the following command:
 
 ```
-histdb import histfile
+hstdb import histfile
 ```
 
 As the information stored in the histfile is pretty limited the following
@@ -311,37 +309,33 @@ information will be stored:
 * `result` (exit code) will be parsed from the histfile
 * `command` will be parsed from the histfile
 * `time_start` will be copied over from `time_finished`
-* `hostname` will use the current machines hostname
+* `hostname` will use the current machine's hostname
 * `pwd` will be set to the current users home directory
 * `session_id` will be generated and used for all commands imported from the
 histfile
-* `user` will use the current user thats running the import
+* `user` will use the current user that is running the import
 
 ## Completion
-Currentyl only zsh generation is enabled as other shells don't make
-sense at the moment.
-
 Completion generation is provided through a subcommand:
 
-```
-» hstdb completion -h
-hstdb-completion 2.1.0
+<!-- BEGIN GENERATED SECTION: completion-help -->
+```text
 Generate autocomplete files for shells
 
-USAGE:
-    hstdb completion <SHELL>
+Usage: hstdb completion [SHELL]
 
-ARGS:
-    <SHELL>
-            For which shell to generate the autocomplete [default: zsh] [possible values: zsh]
+Arguments:
+  [SHELL]
+          For which shell to generate the autocomplete
+          
+          [default: zsh]
+          [possible values: bash, elvish, fish, powershell, zsh]
 
-OPTIONS:
-    -h, --help
-            Print help information
-
-    -V, --version
-            Print version information
+Options:
+  -h, --help
+          Print help
 ```
+<!-- END GENERATED SECTION: completion-help -->
 
 ### Zsh
 For zsh make sure your `$fpath` contains a folder you can write to:

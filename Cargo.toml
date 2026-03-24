@@ -18,6 +18,7 @@ repository = "https://github.com/AlexanderThaller/hstdb"
 [features]
 default = ["histdb-import"]
 histdb-import = ["rusqlite"]
+generate-readme = []
 
 [dependencies]
 bitcode = { version = "0.6", features = ["serde"] }

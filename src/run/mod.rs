@@ -2,6 +2,8 @@
 
 /// Import helpers for migrating existing shell history into `hstdb`.
 pub mod import;
+#[cfg(feature = "generate-readme")]
+mod readme;
 
 use crate::{
     client,
@@ -65,6 +67,11 @@ pub enum Error {
     /// Formatting a specific entry for output failed.
     #[error("can not format entry: {0}\nentry: {1:?}")]
     FormatEntry(Box<Error>, Entry),
+
+    #[cfg(feature = "generate-readme")]
+    /// Regenerating the project README failed.
+    #[error("{0}")]
+    Readme(#[from] readme::Error),
 }
 
 /// Controls which columns are shown when rendering history output.
@@ -150,6 +157,13 @@ pub fn default(
     } else {
         default_no_format(display, entries)
     }
+}
+
+#[cfg(feature = "generate-readme")]
+#[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Regenerates `README.md` help sections from the clap command tree.
+pub fn generate_readme(readme_path: PathBuf) -> Result<(), Error> {
+    readme::generate(readme_path).map_err(Error::Readme)
 }
 
 /// Prints entries as tab-separated rows.
