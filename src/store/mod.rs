@@ -40,6 +40,7 @@ pub struct Store {
     data_dir: PathBuf,
 }
 
+#[must_use]
 pub const fn new(data_dir: PathBuf) -> Store {
     Store { data_dir }
 }

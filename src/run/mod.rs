@@ -131,10 +131,12 @@ impl Display {
         }
     }
 
+    #[must_use]
     pub const fn should_hide(b: bool) -> Self {
         if b { Self::Hide } else { Self::Show }
     }
 
+    #[must_use]
     pub const fn should_show(b: bool) -> Self {
         if b { Self::Show } else { Self::Hide }
     }

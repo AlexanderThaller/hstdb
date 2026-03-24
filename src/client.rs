@@ -26,6 +26,7 @@ pub enum Error {
     SendMessage(std::io::Error),
 }
 
+#[must_use]
 pub const fn new(socket_path: PathBuf) -> Client {
     Client { socket_path }
 }

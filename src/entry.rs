@@ -26,6 +26,7 @@ pub struct Entry {
 }
 
 impl Entry {
+    #[must_use]
     pub fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
         let command = start.command.trim_end();
 

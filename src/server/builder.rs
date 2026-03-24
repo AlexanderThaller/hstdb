@@ -29,6 +29,7 @@ pub enum Error {
     Db(#[from] db::Error),
 }
 
+#[derive(Debug)]
 pub struct Builder {
     pub(super) cache_dir: PathBuf,
     pub(super) data_dir: PathBuf,

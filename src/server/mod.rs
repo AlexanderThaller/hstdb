@@ -94,6 +94,7 @@ pub enum Error {
     Db(#[from] db::Error),
 }
 
+#[derive(Debug)]
 pub struct Server {
     pub(super) db: Db,
     pub(super) socket: UnixDatagram,
@@ -104,6 +105,7 @@ pub struct Server {
     pub(super) handle_ctrlc: bool,
 }
 
+#[must_use]
 pub fn builder(
     cache_dir: PathBuf,
     data_dir: PathBuf,

@@ -32,10 +32,12 @@ pub struct Filter<'a> {
 }
 
 impl<'a> Filter<'a> {
+    #[must_use]
     pub const fn get_hostname(&self) -> Option<&String> {
         self.hostname.as_ref()
     }
 
+    #[must_use]
     pub fn new(config: &'a Config) -> Self {
         Self {
             config_hostname: config.hostname.as_deref(),
@@ -81,10 +83,12 @@ impl<'a> Filter<'a> {
         })
     }
 
+    #[must_use]
     pub fn count(self, count: usize) -> Self {
         Self { count, ..self }
     }
 
+    #[must_use]
     pub fn command(
         self,
         command: Option<String>,
@@ -99,6 +103,7 @@ impl<'a> Filter<'a> {
         }
     }
 
+    #[must_use]
     pub fn filter_entries(&self, entries: Vec<Entry>) -> Vec<Entry> {
         let filtered: Vec<Entry> = entries
             .into_iter()
@@ -152,10 +157,12 @@ impl<'a> Filter<'a> {
         }
     }
 
+    #[must_use]
     pub fn session(self, session: Option<Regex>) -> Self {
         Self { session, ..self }
     }
 
+    #[must_use]
     pub fn filter_failed(self, filter_failed: bool) -> Self {
         Self {
             failed: filter_failed,
@@ -169,6 +176,7 @@ impl<'a> Filter<'a> {
             .any(|pipe_command| pipe_command.split_whitespace().next() == Some(command))
     }
 
+    #[must_use]
     pub fn find_status(self, find_status: Option<u16>) -> Self {
         Self {
             find_status,

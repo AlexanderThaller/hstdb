@@ -35,6 +35,7 @@ pub fn new(path: impl AsRef<Path>) -> Result<Db, Error> {
     })
 }
 
+#[derive(Debug)]
 pub struct Db {
     entries: sled::Db,
     disabled_sessions: sled::Db,
