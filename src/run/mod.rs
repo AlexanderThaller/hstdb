@@ -391,6 +391,7 @@ pub(crate) fn server(
     Ok(())
 }
 
+#[cfg(feature = "sqlite-cache")]
 /// Rebuilds the local cache database from the CSV store.
 pub(crate) fn sync_cache(data_dir: &Path, cache_path: &Path) -> color_eyre::Result<()> {
     store::with_cache_path(data_dir.to_path_buf(), cache_path.to_path_buf())

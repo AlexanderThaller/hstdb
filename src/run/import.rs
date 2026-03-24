@@ -118,6 +118,7 @@ pub(crate) enum Error {
     #[error("can not get current user: {0}")]
     GetUser(std::env::VarError),
 
+    #[cfg(feature = "histdb-import")]
     /// An imported entry had an invalid start timestamp.
     #[error("time start is missing")]
     TimeStartMissing,

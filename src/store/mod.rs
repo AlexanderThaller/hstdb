@@ -1,6 +1,6 @@
 //! CSV-backed persistent history storage for `hstdb`.
 
-#[cfg(feature = "histdb-import")]
+#[cfg(feature = "sqlite-cache")]
 mod cache;
 /// Query filtering primitives used when reading history entries.
 pub(crate) mod filter;
@@ -50,7 +50,7 @@ pub(crate) enum Error {
     #[error("{0}")]
     Filter(#[from] filter::Error),
 
-    #[cfg(feature = "histdb-import")]
+    #[cfg(feature = "sqlite-cache")]
     /// Updating or querying the local cache database failed.
     #[error("{0}")]
     Cache(#[from] cache::Error),
@@ -60,6 +60,10 @@ pub(crate) enum Error {
 #[derive(Debug)]
 pub(crate) struct Store {
     data_dir: PathBuf,
+    #[cfg_attr(
+        not(feature = "sqlite-cache"),
+        expect(dead_code, reason = "used when the sqlite-cache feature is enabled")
+    )]
     cache_path: Option<PathBuf>,
 }
 
@@ -114,7 +118,7 @@ impl Store {
 
         writer.serialize(entry).map_err(Error::SerializeEntry)?;
 
-        #[cfg(feature = "histdb-import")]
+        #[cfg(feature = "sqlite-cache")]
         if let Some(cache_path) = &self.cache_path {
             cache::append_entry(cache_path, entry)?;
         }
@@ -135,7 +139,7 @@ impl Store {
 
     /// Reads, sorts, and filters entries from the persistent store.
     pub(crate) fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
-        #[cfg(feature = "histdb-import")]
+        #[cfg(feature = "sqlite-cache")]
         if let Some(cache_path) = &self.cache_path {
             if !cache_path.exists() {
                 self.sync_cache()?;
@@ -169,9 +173,9 @@ impl Store {
         Ok(collector.finish())
     }
 
+    #[cfg(feature = "sqlite-cache")]
     /// Rebuilds the local cache database from the CSV store.
     pub(crate) fn sync_cache(&self) -> Result<(), Error> {
-        #[cfg(feature = "histdb-import")]
         if let Some(cache_path) = &self.cache_path {
             cache::sync_from_csv(&self.data_dir, cache_path)?;
         }
@@ -338,7 +342,7 @@ mod test {
         assert_eq!(entries, vec![entry(3, "keep-three"), entry(4, "keep-four")]);
     }
 
-    #[cfg(feature = "histdb-import")]
+    #[cfg(feature = "sqlite-cache")]
     #[test]
     fn sync_cache_rebuilds_database_from_csv() {
         let data_dir = tempfile::tempdir().unwrap();

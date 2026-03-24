@@ -137,6 +137,7 @@ struct ZSHAddHistory {
 
 #[derive(Parser, Debug)]
 struct Server {
+    #[cfg(feature = "sqlite-cache")]
     #[clap(flatten)]
     cache_path: CachePath,
 
@@ -165,6 +166,7 @@ struct ImportHistdb {
     #[clap(flatten)]
     data_dir: DataDir,
 
+    #[cfg(feature = "sqlite-cache")]
     #[clap(flatten)]
     cache_path: CachePath,
 
@@ -178,6 +180,7 @@ struct ImportHistfile {
     #[clap(flatten)]
     data_dir: DataDir,
 
+    #[cfg(feature = "sqlite-cache")]
     #[clap(flatten)]
     cache_path: CachePath,
 
@@ -211,6 +214,7 @@ struct DataDir {
     data_dir: PathBuf,
 }
 
+#[cfg(feature = "sqlite-cache")]
 #[derive(Parser, Debug)]
 struct CachePath {
     /// Path to the local `SQLite` cache database
@@ -250,6 +254,7 @@ struct DefaultArgs {
     #[clap(flatten)]
     data_dir: DataDir,
 
+    #[cfg(feature = "sqlite-cache")]
     #[clap(flatten)]
     cache_path: CachePath,
 
@@ -333,6 +338,7 @@ struct DefaultArgs {
     config: Config,
 }
 
+#[cfg(feature = "sqlite-cache")]
 #[derive(Parser, Debug)]
 struct SyncCache {
     #[clap(flatten)]
@@ -376,6 +382,7 @@ enum SubCommand {
     #[clap(subcommand, name = "import")]
     Import(Import),
 
+    #[cfg(feature = "sqlite-cache")]
     /// Rebuild the local `SQLite` cache database from the CSV store
     #[clap(name = "sync-cache")]
     SyncCache(SyncCache),
@@ -418,6 +425,10 @@ pub(crate) struct Opt {
 }
 
 impl Opt {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "CLI dispatch keeps all top-level wiring in one place"
+    )]
     /// Executes the selected `hstdb` command.
     pub(crate) fn run(self) -> color_eyre::Result<()> {
         let sub_command = self.sub_command;
@@ -426,7 +437,10 @@ impl Opt {
         let all_hosts = self.default_args.all_hosts;
         let hostname = self.default_args.hostname;
         let data_dir = self.default_args.data_dir.data_dir;
+        #[cfg(feature = "sqlite-cache")]
         let cache_path = self.default_args.cache_path.cache_path;
+        #[cfg(not(feature = "sqlite-cache"))]
+        let cache_path = default_cache_path();
         let entries_count = self.default_args.entries_count;
         let command = self.default_args.command;
         let session_filter = self.default_args.session;
@@ -482,7 +496,10 @@ impl Opt {
                     &o.socket_path.socket_path,
                     &o.data_dir.data_dir,
                     &o.state_dir.state_dir,
+                    #[cfg(feature = "sqlite-cache")]
                     &o.cache_path.cache_path,
+                    #[cfg(not(feature = "sqlite-cache"))]
+                    &default_cache_path(),
                 ),
                 SubCommand::Stop(o) => run::stop(&o.socket_path),
                 SubCommand::Disable(o) => run::disable(&o.socket_path),
@@ -497,14 +514,21 @@ impl Opt {
                     Import::Histdb(o) => run::import::histdb(
                         &o.import_file,
                         o.data_dir.data_dir,
+                        #[cfg(feature = "sqlite-cache")]
                         o.cache_path.cache_path,
+                        #[cfg(not(feature = "sqlite-cache"))]
+                        default_cache_path(),
                     ),
                     Import::Histfile(o) => run::import::histfile(
                         &o.import_file,
                         o.data_dir.data_dir,
+                        #[cfg(feature = "sqlite-cache")]
                         o.cache_path.cache_path,
+                        #[cfg(not(feature = "sqlite-cache"))]
+                        default_cache_path(),
                     ),
                 },
+                #[cfg(feature = "sqlite-cache")]
                 SubCommand::SyncCache(o) => {
                     run::sync_cache(&o.data_dir.data_dir, &o.cache_path.cache_path)
                 }

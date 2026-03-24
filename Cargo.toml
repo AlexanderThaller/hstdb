@@ -16,8 +16,9 @@ repository = "https://github.com/AlexanderThaller/hstdb"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["histdb-import"]
-histdb-import = ["rusqlite"]
+default = ["histdb-import", "sqlite-cache"]
+histdb-import = ["dep:rusqlite"]
+sqlite-cache = ["dep:rusqlite"]
 generate-readme = ["dep:askama"]
 
 [dependencies]
