@@ -18,9 +18,10 @@ repository = "https://github.com/AlexanderThaller/hstdb"
 [features]
 default = ["histdb-import"]
 histdb-import = ["rusqlite"]
-generate-readme = []
+generate-readme = ["dep:askama"]
 
 [dependencies]
+askama = { version = "0.14", optional = true }
 bitcode = { version = "0.6", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap_complete = "4"

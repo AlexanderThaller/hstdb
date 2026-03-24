@@ -3,6 +3,7 @@ use std::{
     path::PathBuf,
 };
 
+use askama::Template;
 use clap::CommandFactory;
 use thiserror::Error;
 
@@ -27,6 +28,14 @@ struct HelpSection {
     end_marker: &'static str,
 }
 
+#[derive(Template)]
+#[template(path = "readme_section.md", escape = "none")]
+struct ReadmeSectionTemplate<'a> {
+    start_marker: &'a str,
+    help: &'a str,
+    end_marker: &'a str,
+}
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("can not read README file {path}: {source}")]
@@ -48,6 +57,9 @@ pub enum Error {
 
     #[error("missing clap subcommand `{name}` while rendering README help")]
     MissingSubCommand { name: &'static str },
+
+    #[error("can not render README template: {0}")]
+    RenderTemplate(#[from] askama::Error),
 }
 
 pub fn generate(readme_path: PathBuf) -> Result<(), Error> {
@@ -124,17 +136,19 @@ fn replace_section(
         .map(|index| after_start + index)
         .ok_or(Error::MissingMarker { marker: end_marker })?;
 
-    let replacement = format!(
-        "{start_marker}\n```text\n{help}\n```\n{end_marker}",
-        help = help.trim_end(),
-    );
+    let replacement = ReadmeSectionTemplate {
+        start_marker,
+        help: help.trim_end(),
+        end_marker,
+    }
+    .render()?;
 
-    Ok(format!(
-        "{}{}{}",
-        &readme[..start],
-        replacement,
-        &readme[end + end_marker.len()..]
-    ))
+    let mut updated = String::with_capacity(readme.len() - (end - start) + replacement.len());
+    updated.push_str(&readme[..start]);
+    updated.push_str(&replacement);
+    updated.push_str(&readme[end + end_marker.len()..]);
+
+    Ok(updated)
 }
 
 fn render_help(command_path: &'static [&'static str]) -> Result<String, Error> {
