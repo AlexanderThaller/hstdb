@@ -141,7 +141,7 @@ Options:
       --find-status <FIND_STATUS>
           Find commands with the given return code
       --config-path <CONFIG_PATH>
-          Path to the socket for communication with the server [env: HSTDB_CONFIG_PATH=] [default: /home/athaller/.config/hstdb/config.toml]
+          Path to the config file [env: HSTDB_CONFIG_PATH=] [default: $XDG_CONFIG_HOME/hstdb/config.toml]
   -h, --help
           Print help
   -V, --version
