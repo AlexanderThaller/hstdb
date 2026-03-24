@@ -347,7 +347,7 @@ impl Opt {
 
         sub_command.map_or_else(
             || {
-                let filter = Filter::default()
+                let filter = Filter::new(&config)
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
                     .count(entries_count)
