@@ -60,15 +60,25 @@ fn default_cache_path() -> PathBuf {
 }
 
 fn default_histdb_sqlite_path() -> PathBuf {
-    let base_dirs = base_directory();
-    let home = base_dirs.home_dir();
-    home.join(".histdb").join("zsh-history.db")
+    std::env::var_os("HISTDB_FILE").map_or_else(
+        || {
+            let base_dirs = base_directory();
+            let home = base_dirs.home_dir();
+            home.join(".histdb").join("zsh-history.db")
+        },
+        PathBuf::from,
+    )
 }
 
 fn default_zsh_histfile_path() -> PathBuf {
-    let base_dirs = base_directory();
-    let home = base_dirs.home_dir();
-    home.join(".histfile")
+    std::env::var_os("HISTFILE").map_or_else(
+        || {
+            let base_dirs = base_directory();
+            let home = base_dirs.home_dir();
+            home.join(".histfile")
+        },
+        PathBuf::from,
+    )
 }
 
 fn default_socket_path() -> PathBuf {
