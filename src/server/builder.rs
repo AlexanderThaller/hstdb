@@ -17,7 +17,7 @@ use thiserror::Error;
 
 /// Errors returned while constructing a [`Server`](super::Server).
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// The configured socket path has no parent directory.
     #[error("no parent directory for socket path")]
     NoSocketPathParent,
@@ -37,7 +37,7 @@ pub enum Error {
 
 /// Builder for creating a configured [`Server`](super::Server).
 #[derive(Debug)]
-pub struct Builder {
+pub(crate) struct Builder {
     pub(super) state_dir: PathBuf,
     pub(super) data_dir: PathBuf,
     pub(super) socket: PathBuf,
@@ -46,7 +46,7 @@ pub struct Builder {
 
 impl Builder {
     /// Opens the transient database, binds the socket, and returns a server.
-    pub fn build(self) -> color_eyre::Result<Server> {
+    pub(crate) fn build(self) -> color_eyre::Result<Server> {
         let db = db::new(self.state_dir).wrap_err("Failed to initialize server database")?;
 
         let socket_path_parent = self.socket.parent().ok_or(Error::NoSocketPathParent)?;
