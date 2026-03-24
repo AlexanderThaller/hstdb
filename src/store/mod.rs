@@ -87,7 +87,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_entries(&self, filter: &Filter) -> Result<Vec<Entry>, Error> {
+    pub fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = filter.get_hostname() {
             let index_path = self.data_dir.join(format!("{hostname}.csv"));
 

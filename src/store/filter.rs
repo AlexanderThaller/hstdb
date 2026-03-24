@@ -1,4 +1,7 @@
-use crate::entry::Entry;
+use crate::{
+    config::Config,
+    entry::Entry,
+};
 use regex::Regex;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -13,7 +16,7 @@ pub enum Error {
 }
 
 #[derive(Debug, Default)]
-pub struct Filter {
+pub struct Filter<'a> {
     pub hostname: Option<String>,
     pub directory: Option<PathBuf>,
     pub command: Option<String>,
@@ -24,18 +27,31 @@ pub struct Filter {
     pub session: Option<Regex>,
     pub failed: bool,
     pub find_status: Option<u16>,
+
+    config_hostname: Option<&'a str>,
 }
 
-impl Filter {
+impl<'a> Filter<'a> {
     pub const fn get_hostname(&self) -> Option<&String> {
         self.hostname.as_ref()
     }
 
+    pub fn new(config: &'a Config) -> Self {
+        Self {
+            config_hostname: config.hostname.as_deref(),
+            ..Default::default()
+        }
+    }
+
     pub fn hostname(self, hostname: Option<String>, all_hosts: bool) -> Result<Self, Error> {
-        let current_hostname = hostname::get()
-            .map_err(Error::GetHostname)?
-            .to_string_lossy()
-            .to_string();
+        let current_hostname = if let Some(config_hostname) = self.config_hostname {
+            config_hostname.to_string()
+        } else {
+            hostname::get()
+                .map_err(Error::GetHostname)?
+                .to_string_lossy()
+                .to_string()
+        };
 
         let hostname = if all_hosts {
             None

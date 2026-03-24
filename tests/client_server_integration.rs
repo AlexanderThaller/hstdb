@@ -50,8 +50,9 @@ impl Drop for TestClient {
 }
 
 fn create_client_and_server(keep_datadir: bool) -> TestClient {
-    let cache_dir = tempfile::tempdir().unwrap().into_path();
-    let data_dir = tempfile::tempdir().unwrap().into_path();
+    let cache_dir = tempfile::tempdir().unwrap().keep();
+    let data_dir = tempfile::tempdir().unwrap().keep();
+
     let socket = tempfile::NamedTempFile::new()
         .unwrap()
         .into_temp_path()

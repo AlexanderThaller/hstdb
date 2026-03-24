@@ -1,4 +1,3 @@
-use bincode::serde::BorrowCompat;
 use std::{
     os::unix::net::UnixDatagram,
     path::PathBuf,
@@ -21,7 +20,7 @@ pub enum Error {
     ConnectSocket(std::io::Error),
 
     #[error("can not serialize message: {0}")]
-    SerializeMessage(bincode::error::EncodeError),
+    SerializeMessage(bitcode::Error),
 
     #[error("can not send message to socket: {0}")]
     SendMessage(std::io::Error),
@@ -39,8 +38,7 @@ impl Client {
             .connect(&self.socket_path)
             .map_err(Error::ConnectSocket)?;
 
-        let data = bincode::encode_to_vec(BorrowCompat(message), bincode::config::standard())
-            .map_err(Error::SerializeMessage)?;
+        let data = bitcode::serialize(message).map_err(Error::SerializeMessage)?;
 
         socket.send(&data).map_err(Error::SendMessage)?;
 
