@@ -1,7 +1,16 @@
-use crate::message::CommandStart;
-use std::path::Path;
+use std::{
+    collections::BTreeSet,
+    path::Path,
+    sync::{
+        Arc,
+        RwLock,
+    },
+};
+
 use thiserror::Error;
 use uuid::Uuid;
+
+use crate::message::CommandStart;
 
 /// Errors returned by the transient server database.
 #[derive(Error, Debug)]
@@ -9,10 +18,6 @@ pub enum Error {
     /// Opening the in-flight command database failed.
     #[error("can not open entries database: {0}")]
     OpenEntriesDatabase(sled::Error),
-
-    /// Opening the disabled-session database failed.
-    #[error("can not open disabled_sessions database: {0}")]
-    OpenDisabledSessionsDatabase(sled::Error),
 
     /// Serializing a key or value before storage failed.
     #[error("can not serialize data: {0}")]
@@ -31,24 +36,22 @@ pub enum Error {
     EntryNotExist,
 }
 
-/// Opens the transient databases used by the server under `path`.
-pub fn new(path: impl AsRef<Path>) -> Result<Db, Error> {
-    let entries = sled::open(path.as_ref().join("entries")).map_err(Error::OpenEntriesDatabase)?;
-    let disabled_sessions = sled::open(path.as_ref().join("disabled_sessions"))
-        .map_err(Error::OpenDisabledSessionsDatabase)?;
-
-    Ok(Db {
-        entries,
-        disabled_sessions,
-    })
-}
-
 /// Small `sled`-backed database used for in-flight commands and disabled
 /// sessions.
 #[derive(Debug)]
 pub struct Db {
     entries: sled::Db,
-    disabled_sessions: sled::Db,
+    disabled_sessions: Arc<RwLock<BTreeSet<Uuid>>>,
+}
+
+/// Opens the transient databases used by the server under `path`.
+pub fn new(path: impl AsRef<Path>) -> Result<Db, Error> {
+    let entries = sled::open(path.as_ref().join("entries")).map_err(Error::OpenEntriesDatabase)?;
+
+    Ok(Db {
+        entries,
+        disabled_sessions: Arc::new(RwLock::new(BTreeSet::new())),
+    })
 }
 
 impl Db {
@@ -61,11 +64,12 @@ impl Db {
     }
 
     /// Returns whether history recording is disabled for `uuid`.
-    pub fn is_session_disabled(&self, uuid: &Uuid) -> Result<bool, Error> {
-        let key = Self::serialize(uuid)?;
-        let contains = self.disabled_sessions.contains_key(key)?;
-
-        Ok(contains)
+    #[must_use]
+    pub fn is_session_disabled(&self, uuid: &Uuid) -> bool {
+        self.disabled_sessions
+            .read()
+            .expect("Failed to get read lock for disabled_sessions")
+            .contains(uuid)
     }
 
     /// Stores an in-flight command for the session contained in `entry`.
@@ -90,24 +94,19 @@ impl Db {
     }
 
     /// Marks a session as disabled and removes any in-flight command for it.
-    pub fn disable_session(&self, uuid: &Uuid) -> Result<(), Error> {
-        let key = Self::serialize(uuid)?;
-        let value = Self::serialize(true)?;
-
-        self.disabled_sessions.insert(key, value)?;
-
-        self.remove_entry(uuid)?;
-
-        Ok(())
+    pub fn disable_session(&self, uuid: &Uuid) {
+        self.disabled_sessions
+            .write()
+            .expect("Failed to get write lock for disabled_sessions")
+            .insert(*uuid);
     }
 
     /// Re-enables history recording for `uuid`.
-    pub fn enable_session(&self, uuid: &Uuid) -> Result<(), Error> {
-        let key = Self::serialize(uuid)?;
-
-        self.disabled_sessions.remove(&key)?;
-
-        Ok(())
+    pub fn enable_session(&self, uuid: &Uuid) {
+        self.disabled_sessions
+            .write()
+            .expect("Failed to get write lock for disabled_sessions")
+            .remove(uuid);
     }
 
     fn serialize(data: impl serde::Serialize) -> Result<Vec<u8>, Error> {

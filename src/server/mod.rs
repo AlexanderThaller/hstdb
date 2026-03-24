@@ -87,10 +87,6 @@ pub enum Error {
     #[error("can not check if key exists in db: {0}")]
     CheckContainsEntry(db::Error),
 
-    /// Checking whether a session is disabled failed.
-    #[error("can not check if session is disabled in db: {0}")]
-    CheckDisabledSession(db::Error),
-
     /// Recording was skipped because the session is currently disabled.
     #[error("not recording because session {0} is disabled")]
     DisabledSession(Uuid),
@@ -278,8 +274,14 @@ impl Server {
             }
             Message::CommandStart(data) => Self::command_start(db, &data),
             Message::CommandFinished(data) => Self::command_finished(db, store, &data),
-            Message::Disable(uuid) => Self::disable_session(db, &uuid),
-            Message::Enable(uuid) => Self::enable_session(db, &uuid),
+            Message::Disable(uuid) => {
+                let _: () = Self::disable_session(db, &uuid);
+                Ok(())
+            }
+            Message::Enable(uuid) => {
+                let _: () = Self::enable_session(db, &uuid);
+                Ok(())
+            }
         }
     }
 
@@ -291,10 +293,7 @@ impl Server {
             return Err(Error::SessionCommandAlreadyStarted);
         }
 
-        if db
-            .is_session_disabled(&data.session_id)
-            .map_err(Error::CheckDisabledSession)?
-        {
+        if db.is_session_disabled(&data.session_id) {
             return Err(Error::DisabledSession(data.session_id));
         }
 
@@ -304,10 +303,7 @@ impl Server {
     }
 
     fn command_finished(db: &Db, store: &Store, data: &CommandFinished) -> Result<(), Error> {
-        if db
-            .is_session_disabled(&data.session_id)
-            .map_err(Error::CheckDisabledSession)?
-        {
+        if db.is_session_disabled(&data.session_id) {
             return Err(Error::DisabledSession(data.session_id));
         }
 
@@ -329,15 +325,11 @@ impl Server {
         Ok(())
     }
 
-    fn disable_session(db: &Db, uuid: &Uuid) -> Result<(), Error> {
-        db.disable_session(uuid)?;
-
-        Ok(())
+    fn disable_session(db: &Db, uuid: &Uuid) {
+        db.disable_session(uuid);
     }
 
-    fn enable_session(db: &Db, uuid: &Uuid) -> Result<(), Error> {
-        db.enable_session(uuid)?;
-
-        Ok(())
+    fn enable_session(db: &Db, uuid: &Uuid) {
+        db.enable_session(uuid);
     }
 }
