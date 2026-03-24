@@ -1,3 +1,6 @@
+//! CSV-backed persistent history storage for `hstdb`.
+
+/// Query filtering primitives used when reading history entries.
 pub mod filter;
 
 use crate::entry::Entry;
@@ -11,41 +14,52 @@ use std::{
 };
 use thiserror::Error;
 
+/// Errors returned while writing or reading persistent history files.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Creating the directory for host history files failed.
     #[error("can not create log folder: {0}")]
     CreateLogFolder(PathBuf, std::io::Error),
 
+    /// Opening a history file for reading or appending failed.
     #[error("can not open log file: {0}")]
     OpenLogFile(PathBuf, std::io::Error),
 
+    /// Serializing an entry as CSV failed.
     #[error("can not serialize entry: {0}")]
     SerializeEntry(csv::Error),
 
+    /// Building the glob used to read host files failed.
     #[error("glob is not valid: {0}")]
     InvalidGlob(glob::PatternError),
 
+    /// Iterating over the matched history files failed.
     #[error("problem while iterating glob: {0}")]
     GlobIteration(glob::GlobError),
 
+    /// Reading or deserializing a history file failed.
     #[error("can not read log file {0:?}: {1}")]
     ReadLogFile(PathBuf, csv::Error),
 
+    /// Applying a filter that depends on runtime state failed.
     #[error("{0}")]
     Filter(#[from] filter::Error),
 }
 
+/// CSV-backed history store organized as one file per host.
 #[derive(Debug)]
 pub struct Store {
     data_dir: PathBuf,
 }
 
 #[must_use]
+/// Creates a store rooted at `data_dir`.
 pub const fn new(data_dir: PathBuf) -> Store {
     Store { data_dir }
 }
 
 impl Store {
+    /// Appends an entry to the host-specific CSV file.
     pub fn add_entry(&self, entry: &Entry) -> Result<(), Error> {
         let hostname = &entry.hostname;
 
@@ -78,6 +92,7 @@ impl Store {
         Ok(())
     }
 
+    /// Appends an entry when it contains a non-empty command.
     pub fn add(&self, entry: &Entry) -> Result<(), Error> {
         if entry.command.is_empty() {
             return Ok(());
@@ -88,6 +103,7 @@ impl Store {
         Ok(())
     }
 
+    /// Reads, sorts, and filters entries from the persistent store.
     pub fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
         let mut entries: Vec<_> = if let Some(hostname) = filter.get_hostname() {
             let index_path = self.data_dir.join(format!("{hostname}.csv"));

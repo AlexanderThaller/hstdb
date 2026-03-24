@@ -1,4 +1,8 @@
+//! Server-side socket handling and coordination of in-flight commands.
+
+/// Builder types for constructing a [`Server`].
 pub mod builder;
+/// Embedded key-value database used for transient server state.
 pub mod db;
 
 pub use builder::{
@@ -46,54 +50,72 @@ use uuid::Uuid;
 
 const BUFFER_SIZE: usize = 16_384;
 
+/// Errors returned while receiving, decoding, and processing server messages.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Reading a datagram from the Unix socket failed.
     #[error("can not receive message from socket: {0}")]
     ReceiveFromSocket(std::io::Error),
 
+    /// Forwarding received bytes to the processing thread failed.
     #[error("can not send received data to processing: {0}")]
     SendBuffer(flume::SendError<Vec<u8>>),
 
+    /// Deserializing a received message failed.
     #[error("can not deserialize message: {0}")]
     DeserializeMessage(bitcode::Error),
 
+    /// Receiving queued work in the processing thread failed.
     #[error("can not receive data from channel: {0}")]
     ReceiveData(flume::RecvError),
 
+    /// Removing the socket file during shutdown failed.
     #[error("can not remove socket: {0}")]
     RemoveSocket(std::io::Error),
 
+    /// Installing the `Ctrl+C` handler failed.
     #[error("can not setup ctrlc handler: {0}")]
     SetupCtrlHandler(ctrlc::Error),
 
+    /// A command start was received for a session that already has one in
+    /// flight.
     #[error("command for session already started")]
     SessionCommandAlreadyStarted,
 
+    /// A command finish was received without a matching start event.
     #[error("command for session not started yet")]
     SessionCommandNotStarted,
 
+    /// Checking whether a session has an in-flight command failed.
     #[error("can not check if key exists in db: {0}")]
     CheckContainsEntry(db::Error),
 
+    /// Checking whether a session is disabled failed.
     #[error("can not check if session is disabled in db: {0}")]
     CheckDisabledSession(db::Error),
 
+    /// Recording was skipped because the session is currently disabled.
     #[error("not recording because session {0} is disabled")]
     DisabledSession(Uuid),
 
+    /// Storing a started command in the transient database failed.
     #[error("can not add entry to db: {0}")]
     AddDbEntry(db::Error),
 
+    /// Removing a started command from the transient database failed.
     #[error("can not remove entry from db: {0}")]
     RemoveDbEntry(db::Error),
 
+    /// Persisting a finished entry to the store failed.
     #[error("can not add to storeo: {0}")]
     AddStore(crate::store::Error),
 
+    /// Accessing the transient database failed.
     #[error("db error: {0}")]
     Db(#[from] db::Error),
 }
 
+/// Running `hstdb` server instance.
 #[derive(Debug)]
 pub struct Server {
     pub(super) db: Db,
@@ -106,6 +128,7 @@ pub struct Server {
 }
 
 #[must_use]
+/// Creates a [`Builder`] for a server bound to the given paths.
 pub fn builder(
     cache_dir: PathBuf,
     data_dir: PathBuf,
@@ -121,6 +144,7 @@ pub fn builder(
 }
 
 impl Server {
+    /// Starts the receiver and processor threads and blocks until shutdown.
     pub fn run(self) -> Result<(), Error> {
         let data_sender = Self::start_processor(
             Arc::clone(&self.stopping),

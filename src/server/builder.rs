@@ -14,21 +14,27 @@ use std::{
 };
 use thiserror::Error;
 
+/// Errors returned while constructing a [`Server`](super::Server).
 #[derive(Error, Debug)]
 pub enum Error {
+    /// The configured socket path has no parent directory.
     #[error("no parent directory for socket path")]
     NoSocketPathParent,
 
+    /// Creating the socket parent directory failed.
     #[error("can not create socket parent directory: {0}")]
     CreateSocketPathParent(std::io::Error),
 
+    /// Binding the Unix socket failed.
     #[error("can not bind to socket: {0}")]
     BindSocket(std::io::Error),
 
+    /// Initializing the transient server database failed.
     #[error("{0}")]
     Db(#[from] db::Error),
 }
 
+/// Builder for creating a configured [`Server`](super::Server).
 #[derive(Debug)]
 pub struct Builder {
     pub(super) cache_dir: PathBuf,
@@ -38,6 +44,7 @@ pub struct Builder {
 }
 
 impl Builder {
+    /// Opens the transient database, binds the socket, and returns a server.
     pub fn build(self) -> Result<Server, Error> {
         let db = db::new(self.cache_dir)?;
 

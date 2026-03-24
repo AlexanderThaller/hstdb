@@ -1,3 +1,5 @@
+//! Binary entry point for the `hstdb` command-line application.
+
 use clap::Parser;
 
 mod client;

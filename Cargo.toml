@@ -50,7 +50,7 @@ tempfile = "3"
 pretty_assertions = "1"
 
 [lints.rust]
-#missing-docs = "warn"
+missing-docs = "warn"
 missing-debug-implementations = "warn"
 rust-2018-idioms = "warn"
 unsafe-code = "forbid"

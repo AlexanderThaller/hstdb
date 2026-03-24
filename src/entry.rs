@@ -13,19 +13,30 @@ use serde::{
 use std::path::PathBuf;
 use uuid::Uuid;
 
+/// A fully materialized shell history entry persisted by `hstdb`.
 #[derive(Debug, Serialize, Deserialize, Ord, PartialOrd, PartialEq, Eq)]
 pub struct Entry {
+    /// Timestamp at which the command finished.
     pub time_finished: DateTime<Utc>,
+    /// Timestamp at which the command started.
     pub time_start: DateTime<Utc>,
+    /// Hostname on which the command ran.
     pub hostname: String,
+    /// Command text after normalization.
     pub command: String,
+    /// Working directory in which the command ran.
     pub pwd: PathBuf,
+    /// Exit status reported by the shell.
     pub result: u16,
+    /// Session identifier used to correlate start and finish messages.
     pub session_id: Uuid,
+    /// User that ran the command.
     pub user: String,
 }
 
 impl Entry {
+    /// Builds a persistent entry from the corresponding start and finish
+    /// messages.
     #[must_use]
     pub fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
         let command = start.command.trim_end();

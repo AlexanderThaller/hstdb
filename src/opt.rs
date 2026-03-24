@@ -22,11 +22,14 @@ use crate::{
     store::Filter,
 };
 
+/// Errors returned while resolving platform-specific default directories.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// No suitable base directory could be resolved on the current platform.
     #[error("can not get base directories")]
     BaseDirectory,
 
+    /// No suitable project directory could be resolved on the current platform.
     #[error("can not get project dirs")]
     ProjectDirs,
 }
@@ -300,6 +303,7 @@ enum SubCommand {
 }
 
 #[derive(Parser, Debug)]
+/// Options for generating shell completion scripts.
 pub struct CompletionOpts {
     /// For which shell to generate the autocomplete
     #[clap(value_parser, default_value = "zsh")]
@@ -308,6 +312,7 @@ pub struct CompletionOpts {
 
 #[derive(Parser, Debug)]
 #[clap(version, about)]
+/// Top-level command-line options for the `hstdb` binary.
 pub struct Opt {
     #[clap(flatten)]
     default_args: DefaultArgs,
@@ -318,6 +323,7 @@ pub struct Opt {
 
 impl Opt {
     #[expect(clippy::result_large_err, reason = "we will fix this if we need to")]
+    /// Executes the selected `hstdb` command.
     pub fn run(self) -> Result<(), run::Error> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;

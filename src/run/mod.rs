@@ -1,3 +1,6 @@
+//! High-level operations that back the `hstdb` CLI.
+
+/// Import helpers for migrating existing shell history into `hstdb`.
 pub mod import;
 
 use crate::{
@@ -43,61 +46,84 @@ use std::{
 use thiserror::Error;
 use uuid::Uuid;
 
+/// Errors returned by the top-level runtime entry points.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Sending or receiving a client-side message failed.
     #[error("{0}")]
     Client(#[from] client::Error),
 
+    /// Building a message from environment data failed.
     #[error("{0}")]
     Message(#[from] message::Error),
 
+    /// Constructing the server failed.
     #[error("{0}")]
     ServerBuilder(#[from] server::BuilderError),
 
+    /// Running the server failed.
     #[error("{0}")]
     Server(#[from] server::Error),
 
+    /// Reading or writing persistent history failed.
     #[error("{0}")]
     Store(#[from] store::Error),
 
+    /// Building or applying a query filter failed.
     #[error("{0}")]
     Filter(#[from] filter::Error),
 
+    /// No suitable base directory could be resolved on the current platform.
     #[error("can not get base directories")]
     GetBaseDirectories,
 
+    /// Converting a signed duration into a standard duration failed.
     #[error("can not convert chrono milliseconds: {0}")]
     ConvertDuration(std::num::TryFromIntError),
 
+    /// Writing unformatted output to stdout failed.
     #[error("can not write to stdout: {0}")]
     WriteStdout(std::io::Error),
 
+    /// Loading the requested configuration failed.
     #[error("can not read configuration file: {0}")]
     ReadConfig(config::Error),
 
+    /// A command finish timestamp preceded its start timestamp.
     #[error("encountered negative duration when trying to format duration")]
     NegativeDuration,
 
     #[cfg(feature = "histdb-import")]
+    /// Importing data from an existing `histdb` `SQLite` database failed.
     #[error("can not import from histdb: {0}")]
     ImportHistdb(import::Error),
 
+    /// Importing data from a zsh `HISTFILE` failed.
     #[error("can not import from histfile: {0}")]
     ImportHistfile(import::Error),
 
+    /// Formatting a specific entry for output failed.
     #[error("can not format entry: {0}\nentry: {1:?}")]
     FormatEntry(Box<Error>, Entry),
 }
 
+/// Controls which columns are shown when rendering history output.
 #[derive(Debug)]
 pub struct TableDisplay {
+    /// Chooses between table formatting and tab-separated output.
     pub format: bool,
 
+    /// Controls whether the duration column is rendered.
     pub duration: Display,
+    /// Controls whether the header row is rendered.
     pub header: Display,
+    /// Controls whether the host column is rendered.
     pub host: Display,
+    /// Controls whether the working-directory column is rendered.
     pub pwd: Display,
+    /// Controls whether the session-id column is rendered.
     pub session: Display,
+    /// Controls whether the exit-status column is rendered.
     pub status: Display,
 }
 
@@ -116,10 +142,13 @@ impl Default for TableDisplay {
     }
 }
 
+/// Simple visibility toggle used by [`TableDisplay`].
 #[derive(Debug, Default)]
 pub enum Display {
+    /// Hide the associated field or column.
     #[default]
     Hide,
+    /// Show the associated field or column.
     Show,
 }
 
@@ -132,17 +161,20 @@ impl Display {
     }
 
     #[must_use]
+    /// Returns [`Display::Hide`] when `b` is true, otherwise [`Display::Show`].
     pub const fn should_hide(b: bool) -> Self {
         if b { Self::Hide } else { Self::Show }
     }
 
     #[must_use]
+    /// Returns [`Display::Show`] when `b` is true, otherwise [`Display::Hide`].
     pub const fn should_show(b: bool) -> Self {
         if b { Self::Show } else { Self::Hide }
     }
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Loads entries from storage and prints them using the selected display mode.
 pub fn default(
     filter: &Filter<'_>,
     display: &TableDisplay,
@@ -160,6 +192,7 @@ pub fn default(
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Prints entries as tab-separated rows.
 pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
     let mut header = vec!["tmn"];
 
@@ -247,6 +280,7 @@ where
     Ok(())
 }
 
+/// Prints entries using the formatted table renderer.
 pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
     let mut table = Table::new();
     table.load_preset("                   ");
@@ -324,6 +358,7 @@ fn default_format_entry(
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Records a command start event emitted by the zsh `zshaddhistory` hook.
 pub fn zsh_add_history(
     config: &config::Config,
     command: String,
@@ -340,6 +375,7 @@ pub fn zsh_add_history(
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Starts the local history server.
 pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
     server::builder(cache_dir, data_dir, socket, true)
         .build()?
@@ -349,6 +385,7 @@ pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Requests a graceful server shutdown over the control socket.
 pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
     client::new(socket_path).send(&Message::Stop)?;
 
@@ -356,6 +393,7 @@ pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Disables history recording for the current session.
 pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
     let session_id = session_id_from_env()?;
     client::new(socket_path).send(&Message::Disable(session_id))?;
@@ -364,6 +402,7 @@ pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Re-enables history recording for the current session.
 pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
     let session_id = session_id_from_env()?;
     client::new(socket_path).send(&Message::Enable(session_id))?;
@@ -372,6 +411,7 @@ pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Records a command completion event emitted by the zsh `precmd` hook.
 pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
     let data = CommandFinished::from_env()?;
 
@@ -380,15 +420,18 @@ pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
+/// Prints a fresh session identifier to stdout.
 pub fn session_id() {
     println!("{}", Uuid::new_v4());
 }
 
+/// Prints the bundled zsh initialization script to stdout.
 pub fn init() {
     println!("{}", include_str!("../../resources/init.zsh"));
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
+/// Continuously sends synthetic start and finish messages to the server.
 pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
     let client = client::new(socket_path);
 

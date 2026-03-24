@@ -1,3 +1,8 @@
+#![allow(
+    missing_docs,
+    reason = "integration tests are not part of the public API"
+)]
+
 use pretty_assertions::assert_eq;
 use std::{
     path::PathBuf,
