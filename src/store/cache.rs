@@ -98,7 +98,17 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
         params.push(rusqlite::types::Value::from(hostname.clone()));
     }
 
-    sql.push_str(" ORDER BY time_finished DESC");
+    sql.push_str(
+        " ORDER BY \
+         time_finished DESC, \
+         time_start DESC, \
+         hostname DESC, \
+         command DESC, \
+         pwd DESC, \
+         result DESC, \
+         session_id DESC, \
+         user DESC",
+    );
 
     let mut stmt = conn
         .prepare(&sql)
@@ -233,10 +243,28 @@ fn initialize_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> 
              session_id BLOB NOT NULL,
              user TEXT NOT NULL
          );
-         CREATE INDEX IF NOT EXISTS entries_host_finished_idx
-             ON entries(hostname, time_finished DESC);
-         CREATE INDEX IF NOT EXISTS entries_finished_idx
-             ON entries(time_finished DESC);",
+         CREATE INDEX IF NOT EXISTS entries_host_order_idx
+             ON entries(
+                 hostname,
+                 time_finished DESC,
+                 time_start DESC,
+                 command DESC,
+                 pwd DESC,
+                 result DESC,
+                 session_id DESC,
+                 user DESC
+             );
+         CREATE INDEX IF NOT EXISTS entries_order_idx
+             ON entries(
+                 time_finished DESC,
+                 time_start DESC,
+                 hostname DESC,
+                 command DESC,
+                 pwd DESC,
+                 result DESC,
+                 session_id DESC,
+                 user DESC
+             );",
     )
     .map_err(|err| Error::InitializeSchema(cache_path.to_path_buf(), err))?;
 

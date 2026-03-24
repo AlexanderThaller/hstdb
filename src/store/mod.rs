@@ -295,6 +295,19 @@ mod test {
         }
     }
 
+    fn tied_entry(time_finished: i64, time_start: i64, command: &str, session_id: Uuid) -> Entry {
+        Entry {
+            time_finished: Utc.timestamp_opt(time_finished, 0).unwrap(),
+            time_start: Utc.timestamp_opt(time_start, 0).unwrap(),
+            hostname: "host".to_string(),
+            command: command.to_string(),
+            pwd: PathBuf::from("/tmp"),
+            result: 0,
+            session_id,
+            user: "user".to_string(),
+        }
+    }
+
     #[test]
     fn dot_filename_with_extension() {
         let folder_path = std::path::PathBuf::from("/tmp");
@@ -357,5 +370,31 @@ mod test {
         let entries = store.get_entries(&Filter::default()).unwrap();
 
         assert_eq!(entries, vec![entry(1, "first"), entry(2, "second")]);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn cache_order_matches_csv_order_when_time_finished_ties() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let csv_store = crate::store::new(data_dir.path().to_path_buf());
+        let cache_store = crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path);
+
+        let later_start = tied_entry(10, 9, "aaa", Uuid::from_u128(1));
+        let later_command = tied_entry(10, 8, "zzz", Uuid::from_u128(2));
+        let earlier = tied_entry(9, 8, "bbb", Uuid::from_u128(3));
+
+        csv_store.add_entry(&later_command).unwrap();
+        csv_store.add_entry(&earlier).unwrap();
+        csv_store.add_entry(&later_start).unwrap();
+
+        cache_store.sync_cache().unwrap();
+
+        let filter = Filter::default();
+        let csv_entries = csv_store.get_entries(&filter).unwrap();
+        let cache_entries = cache_store.get_entries(&filter).unwrap();
+
+        assert_eq!(cache_entries, csv_entries);
     }
 }
