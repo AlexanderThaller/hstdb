@@ -160,10 +160,9 @@ pub fn default(
 }
 
 #[cfg(feature = "generate-readme")]
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Regenerates `README.md` help sections from the clap command tree.
-pub fn generate_readme(readme_path: PathBuf) -> Result<(), Error> {
-    readme::generate(readme_path)?;
+pub fn generate_readme(readme_path: PathBuf) -> color_eyre::Result<()> {
+    readme::generate(readme_path).wrap_err("generating README file from clap help")?;
     Ok(())
 }
 

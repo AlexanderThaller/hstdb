@@ -5,6 +5,7 @@ use std::{
 
 use askama::Template;
 use clap::CommandFactory;
+use color_eyre::eyre::WrapErr;
 use thiserror::Error;
 
 use crate::opt::{
@@ -38,8 +39,8 @@ pub enum Error {
     RenderTemplate(#[from] askama::Error),
 }
 
-pub fn generate(readme_path: PathBuf) -> Result<(), Error> {
-    let rendered = render_readme()?;
+pub fn generate(readme_path: PathBuf) -> color_eyre::Result<()> {
+    let rendered = render_readme().wrap_err("rendering README content")?;
 
     fs::write(&readme_path, rendered).map_err(|source| Error::WriteReadme {
         path: readme_path,
@@ -49,35 +50,40 @@ pub fn generate(readme_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
-fn render_readme() -> Result<String, Error> {
+fn render_readme() -> color_eyre::Result<String> {
     #[cfg(feature = "histdb-import")]
-    let import_histdb_help = render_help(&["import", "histdb"])?;
+    let import_histdb_help =
+        render_help(&["import", "histdb"]).wrap_err("rendering histdb import help for README")?;
 
     #[cfg(not(feature = "histdb-import"))]
     let import_histdb_help = String::new();
 
     Ok(ReadmeTemplate {
-        usage_help: render_help(&[])?,
+        usage_help: render_help(&[]).wrap_err("rendering top-level help for README")?,
         import_histdb_help,
-        import_histfile_help: render_help(&["import", "histfile"])?,
-        completion_help: render_help(&["completion"])?,
+        import_histfile_help: render_help(&["import", "histfile"])
+            .wrap_err("rendering histfile import help for README")?,
+        completion_help: render_help(&["completion"])
+            .wrap_err("rendering completion help for README")?,
         include_histdb_import: cfg!(feature = "histdb-import"),
     }
     .render()?)
 }
 
-fn render_help(command_path: &'static [&'static str]) -> Result<String, Error> {
+fn render_help(command_path: &'static [&'static str]) -> color_eyre::Result<String> {
     let mut command = Opt::command();
-    let command = find_subcommand(&mut command, command_path)?;
+    let command = find_subcommand(&mut command, command_path)
+        .wrap_err("finding subcommand for README help rendering")?;
     *command = command.clone().bin_name(help_command_path(command_path));
 
     let mut help = Vec::new();
+
     command
         .write_long_help(&mut help)
-        .expect("writing help output to a Vec should never fail");
+        .wrap_err("writing help output to a Vec should never fail")?;
 
     Ok(normalize_help_for_docs(
-        String::from_utf8(help).expect("clap help output should be valid UTF-8"),
+        String::from_utf8(help).wrap_err("clap help output should be valid UTF-8")?,
     ))
 }
 
