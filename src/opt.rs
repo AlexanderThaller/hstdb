@@ -54,6 +54,13 @@ fn default_data_dir() -> PathBuf {
     data_dir.to_owned()
 }
 
+fn default_state_dir() -> PathBuf {
+    let project_dir = project_dir();
+    let state_dir = project_dir.state_dir();
+
+    state_dir.map_or(PathBuf::from("/tmp/hstdb/state"), ToOwned::to_owned)
+}
+
 fn default_cache_path() -> PathBuf {
     let project_dir = project_dir();
     project_dir.cache_dir().join("server")
@@ -139,6 +146,9 @@ struct Server {
 
     #[clap(flatten)]
     socket_path: Socket,
+
+    #[clap(flatten)]
+    state_dir: StateDir,
 }
 
 #[derive(Subcommand, Debug)]
@@ -157,7 +167,7 @@ struct ImportHistdb {
     data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
-    #[clap(short, long, env = "HISTDB_FILE", default_value_os_t = default_histdb_sqlite_path())]
+    #[clap(long, env = "HISTDB_FILE", default_value_os_t = default_histdb_sqlite_path())]
     import_file: PathBuf,
 }
 
@@ -167,14 +177,14 @@ struct ImportHistfile {
     data_dir: DataDir,
 
     /// Path to the existing zsh histfile file
-    #[clap(short, long, env = "HISTFILE", default_value_os_t = default_zsh_histfile_path())]
+    #[clap(long, env = "HISTFILE", default_value_os_t = default_zsh_histfile_path())]
     import_file: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 struct Socket {
     /// Path to the socket for communication with the server
-    #[clap(short, long, env = "HSTDB_SOCKET_PATH", default_value_os_t = default_socket_path())]
+    #[clap(long, env = "HSTDB_SOCKET_PATH", default_value_os_t = default_socket_path())]
     socket_path: PathBuf,
 }
 
@@ -189,12 +199,22 @@ struct Config {
 struct DataDir {
     /// Path to folder in which to store the history files
     #[clap(
-        short,
         long,
         env = "HSTDB_DATA_DIR",
         default_value_os_t = default_data_dir()
     )]
     data_dir: PathBuf,
+}
+
+#[derive(Parser, Debug)]
+struct StateDir {
+    /// Path to folder in which to store server state
+    #[clap(
+        long,
+        env = "HSTDB_STATE_DIR",
+        default_value_os_t = default_state_dir()
+    )]
+    state_dir: PathBuf,
 }
 
 #[cfg(feature = "generate-readme")]
@@ -426,9 +446,9 @@ impl Opt {
                     run::zsh_add_history(&config, o.command, &o.socket_path.socket_path)
                 }
                 SubCommand::Server(o) => run::server(
-                    &o.cache_path,
                     &o.socket_path.socket_path,
                     &o.data_dir.data_dir,
+                    &o.state_dir.state_dir,
                 ),
                 SubCommand::Stop(o) => run::stop(&o.socket_path),
                 SubCommand::Disable(o) => run::disable(&o.socket_path),

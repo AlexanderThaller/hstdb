@@ -357,19 +357,19 @@ pub fn zsh_add_history(
 }
 
 /// Starts the local history server.
-pub fn server(cache_dir: &Path, socket: &Path, data_dir: &Path) -> color_eyre::Result<()> {
+pub fn server(socket: &Path, data_dir: &Path, state_dir: &Path) -> color_eyre::Result<()> {
     server::builder(
-        cache_dir.to_path_buf(),
         data_dir.to_path_buf(),
+        state_dir.to_path_buf(),
         socket.to_path_buf(),
         true,
     )
     .build()
     .wrap_err_with(|| {
         format!(
-            "can not build hstdb server with cache {}, data dir {}, and socket {}",
-            cache_dir.display(),
+            "can not build hstdb server with data dir {}, state_dir {}, and socket {}",
             data_dir.display(),
+            state_dir.display(),
             socket.display()
         )
     })?
