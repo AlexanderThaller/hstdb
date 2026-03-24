@@ -83,17 +83,9 @@ pub enum Error {
     #[error("command for session not started yet")]
     SessionCommandNotStarted,
 
-    /// Checking whether a session has an in-flight command failed.
-    #[error("can not check if key exists in db: {0}")]
-    CheckContainsEntry(db::Error),
-
     /// Recording was skipped because the session is currently disabled.
     #[error("not recording because session {0} is disabled")]
     DisabledSession(Uuid),
-
-    /// Storing a started command in the transient database failed.
-    #[error("can not add entry to db: {0}")]
-    AddDbEntry(db::Error),
 
     /// Removing a started command from the transient database failed.
     #[error("can not remove entry from db: {0}")]
@@ -286,10 +278,7 @@ impl Server {
     }
 
     fn command_start(db: &Db, data: &CommandStart) -> Result<(), Error> {
-        if db
-            .contains_entry(&data.session_id)
-            .map_err(Error::CheckContainsEntry)?
-        {
+        if db.contains_entry(&data.session_id) {
             return Err(Error::SessionCommandAlreadyStarted);
         }
 
@@ -297,7 +286,7 @@ impl Server {
             return Err(Error::DisabledSession(data.session_id));
         }
 
-        db.add_entry(data).map_err(Error::AddDbEntry)?;
+        db.add_entry(data);
 
         Ok(())
     }
@@ -307,10 +296,7 @@ impl Server {
             return Err(Error::DisabledSession(data.session_id));
         }
 
-        if !db
-            .contains_entry(&data.session_id)
-            .map_err(Error::CheckContainsEntry)?
-        {
+        if !db.contains_entry(&data.session_id) {
             return Err(Error::SessionCommandNotStarted);
         }
 
