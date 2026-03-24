@@ -140,14 +140,14 @@ struct ImportHistfile {
 #[derive(Parser, Debug)]
 struct Socket {
     /// Path to the socket for communication with the server
-    #[clap(short, long, env = "HISTDBRS_SOCKET_PATH", default_value_os_t = default_socket_path())]
+    #[clap(short, long, env = "HSTDB_SOCKET_PATH", default_value_os_t = default_socket_path())]
     socket_path: PathBuf,
 }
 
 #[derive(Parser, Debug)]
 struct Config {
-    /// Path to the socket for communication with the server
-    #[clap(long, env = "HISTDBRS_CONFIG_PATH", default_value_os_t = default_config_path())]
+    /// Path to the configuration file
+    #[clap(long, env = "HSTDB_CONFIG_PATH", default_value_os_t = default_config_path())]
     config_path: PathBuf,
 }
 
@@ -157,7 +157,7 @@ struct DataDir {
     #[clap(
         short,
         long,
-        env = "HISTDBRS_DATA_DIR",
+        env = "HSTDB_DATA_DIR",
         default_value_os_t = default_data_dir()
     )]
     data_dir: PathBuf,
