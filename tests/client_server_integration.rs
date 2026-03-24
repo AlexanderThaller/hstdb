@@ -79,7 +79,7 @@ fn create_client_and_server(keep_datadir: bool) -> TestClient {
         let state_dir = state_dir.clone();
         let socket = socket.clone();
 
-        let server = server::builder(data_dir, socket, state_dir, false)
+        let server = server::builder(data_dir, state_dir, socket, false)
             .build()
             .expect("Failed to build server");
 

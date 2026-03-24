@@ -27,8 +27,8 @@ pub enum Error {
     CreateSocketPathParent(std::io::Error),
 
     /// Binding the Unix socket failed.
-    #[error("can not bind to socket: {0}")]
-    BindSocket(std::io::Error),
+    #[error("can not bind to socket at path {0}: {1}")]
+    BindSocket(PathBuf, std::io::Error),
 
     /// Initializing the transient server database failed.
     #[error("{0}")]
@@ -51,7 +51,8 @@ impl Builder {
 
         let socket_path_parent = self.socket.parent().ok_or(Error::NoSocketPathParent)?;
         std::fs::create_dir_all(socket_path_parent).map_err(Error::CreateSocketPathParent)?;
-        let socket = UnixDatagram::bind(&self.socket).map_err(Error::BindSocket)?;
+        let socket = UnixDatagram::bind(&self.socket)
+            .map_err(|err| Error::BindSocket(self.socket.clone(), err))?;
 
         let store = store::new(self.data_dir);
 
