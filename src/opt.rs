@@ -5,6 +5,7 @@ use clap::{
     Parser,
     Subcommand,
 };
+use color_eyre::eyre::WrapErr;
 use directories::{
     BaseDirs,
     ProjectDirs,
@@ -395,7 +396,8 @@ impl Opt {
 
         sub_command.map_or_else(
             || {
-                let config = config::Config::open(&config_path)?;
+                let config =
+                    config::Config::open(&config_path).wrap_err("failed to open config file")?;
                 let filter = Filter::new(&config)
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
