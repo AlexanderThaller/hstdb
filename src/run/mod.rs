@@ -85,22 +85,9 @@ pub enum Error {
     #[error("can not write to stdout: {0}")]
     WriteStdout(std::io::Error),
 
-    /// Loading the requested configuration failed.
-    #[error("can not read configuration file: {0}")]
-    ReadConfig(config::Error),
-
     /// A command finish timestamp preceded its start timestamp.
     #[error("encountered negative duration when trying to format duration")]
     NegativeDuration,
-
-    #[cfg(feature = "histdb-import")]
-    /// Importing data from an existing `histdb` `SQLite` database failed.
-    #[error("can not import from histdb: {0}")]
-    ImportHistdb(import::Error),
-
-    /// Importing data from a zsh `HISTFILE` failed.
-    #[error("can not import from histfile: {0}")]
-    ImportHistfile(import::Error),
 
     /// Formatting a specific entry for output failed.
     #[error("can not format entry: {0}\nentry: {1:?}")]
