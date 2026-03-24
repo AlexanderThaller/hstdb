@@ -48,7 +48,7 @@ pub(crate) struct Filter<'a> {
 impl<'a> Filter<'a> {
     #[must_use]
     /// Returns the configured maximum number of entries to keep.
-    pub const fn count_limit(&self) -> usize {
+    pub(crate) const fn count_limit(&self) -> usize {
         self.count
     }
 
@@ -133,7 +133,7 @@ impl<'a> Filter<'a> {
 
     #[must_use]
     /// Returns whether `entry` matches the configured filter.
-    pub fn matches_entry(&self, entry: &Entry) -> bool {
+    pub(crate) fn matches_entry(&self, entry: &Entry) -> bool {
         self.command
             .as_ref()
             .is_none_or(|command| Self::filter_command(&entry.command, command))

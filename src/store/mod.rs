@@ -107,7 +107,7 @@ impl Store {
     }
 
     /// Reads, sorts, and filters entries from the persistent store.
-    pub fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
+    pub(crate) fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
         let mut collector = EntryCollector::new(filter.count_limit());
 
         if let Some(hostname) = filter.get_hostname() {
