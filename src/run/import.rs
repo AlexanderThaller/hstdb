@@ -80,15 +80,17 @@ pub enum Error {
     OpenHistfile(std::io::Error),
 
     /// A multiline histfile entry was missing its finish timestamp.
-    #[error("multiline histfile entry ended without a parsed finish timestamp (finish-time accumulator was None)")]
+    #[error(
+        "multiline histfile entry missing finish timestamp (time-finished accumulator was none)"
+    )]
     TimeFinishedAccumulatorNone,
 
     /// A multiline histfile entry was missing its exit status.
-    #[error("accumulator for result is none")]
+    #[error("multiline histfile entry missing exit status (result accumulator was none)")]
     ResultAccumulatorNone,
 
     /// A multiline histfile entry was missing its command text.
-    #[error("accumulator for command is none")]
+    #[error("multiline histfile entry missing command text (command accumulator was none)")]
     CommandAccumulatorNone,
 
     /// A histfile line was missing its timestamp prefix.
