@@ -11,6 +11,7 @@ documentation = "https://docs.rs/hstdb/"
 homepage = "https://github.com/AlexanderThaller/hstdb"
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/AlexanderThaller/hstdb"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,6 +24,7 @@ bitcode = { version = "0.6", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
+color-eyre = "0.6"
 comfy-table = "7"
 crossbeam-utils = "0.8"
 csv = "1"

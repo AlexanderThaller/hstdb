@@ -5,6 +5,7 @@ use clap::{
     Parser,
     Subcommand,
 };
+use color_eyre::eyre::WrapErr;
 use directories::{
     BaseDirs,
     ProjectDirs,
@@ -322,9 +323,12 @@ pub struct Opt {
 }
 
 impl Opt {
-    #[expect(clippy::result_large_err, reason = "we will fix this if we need to")]
     /// Executes the selected `hstdb` command.
-    pub fn run(self) -> Result<(), run::Error> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "this is the main entry point for the CLI and it's fine if it's a bit long"
+    )]
+    pub fn run(self) -> color_eyre::Result<()> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;
         let folder = self.default_args.folder;
@@ -340,7 +344,7 @@ impl Opt {
         let filter_failed = self.default_args.filter_failed;
         let find_status = self.default_args.find_status;
         let config = config::Config::open(self.default_args.config.config_path)
-            .map_err(run::Error::ReadConfig)?;
+            .wrap_err("can not read configuration file")?;
 
         let format = !self.default_args.disable_formatting;
         let duration = Display::should_show(self.default_args.show_duration);
@@ -352,11 +356,13 @@ impl Opt {
 
         env_logger::init();
 
-        sub_command.map_or_else(
-            || {
+        match sub_command {
+            None => {
                 let filter = Filter::new(&config)
-                    .directory(folder, in_current, no_subdirs)?
-                    .hostname(hostname, all_hosts)?
+                    .directory(folder, in_current, no_subdirs)
+                    .wrap_err("can not apply directory filters from CLI arguments")?
+                    .hostname(hostname, all_hosts)
+                    .wrap_err("can not apply hostname filters from CLI arguments")?
                     .count(entries_count)
                     .command(command, command_text, command_text_excluded)
                     .session(session_filter)
@@ -374,46 +380,67 @@ impl Opt {
                     status,
                 };
 
-                run::default(&filter, &display, data_dir)
-            },
-            |sub_command| match sub_command {
+                run::default(&filter, &display, &data_dir)
+                    .wrap_err("can not render history entries")?;
+            }
+            Some(sub_command) => match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
-                    run::zsh_add_history(&config, o.command, o.socket_path.socket_path)
+                    run::zsh_add_history(&config, o.command, &o.socket_path.socket_path)
+                        .wrap_err("can not record command start from zshaddhistory")?;
                 }
                 SubCommand::Server(o) => {
-                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
+                    run::server(
+                        &o.cache_path,
+                        &o.socket_path.socket_path,
+                        &o.data_dir.data_dir,
+                    )
+                    .wrap_err("can not start hstdb server")?;
                 }
-                SubCommand::Stop(o) => run::stop(o.socket_path),
-                SubCommand::Disable(o) => run::disable(o.socket_path),
-                SubCommand::Enable(o) => run::enable(o.socket_path),
-                SubCommand::PreCmd(o) => run::precmd(o.socket_path),
-                SubCommand::SessionID => {
-                    run::session_id();
-                    Ok(())
+                SubCommand::Stop(o) => {
+                    run::stop(&o.socket_path).wrap_err("can not stop hstdb server")?;
                 }
+                SubCommand::Disable(o) => {
+                    run::disable(&o.socket_path)
+                        .wrap_err("can not disable history recording for this session")?;
+                }
+                SubCommand::Enable(o) => {
+                    run::enable(&o.socket_path)
+                        .wrap_err("can not enable history recording for this session")?;
+                }
+                SubCommand::PreCmd(o) => {
+                    run::precmd(&o.socket_path)
+                        .wrap_err("can not record command completion from precmd")?;
+                }
+                SubCommand::SessionID => run::session_id(),
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
                     Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
-                        .map_err(run::Error::ImportHistdb),
+                        .wrap_err_with(|| {
+                        format!(
+                            "can not import from histdb file {}",
+                            o.import_file.display()
+                        )
+                    })?,
                     Import::Histfile(o) => {
-                        run::import::histfile(&o.import_file, o.data_dir.data_dir)
-                            .map_err(run::Error::ImportHistfile)
+                        run::import::histfile(&o.import_file, o.data_dir.data_dir).wrap_err_with(
+                            || format!("can not import from histfile {}", o.import_file.display()),
+                        )?;
                     }
                 },
-                SubCommand::Init => {
-                    run::init();
-                    Ok(())
+                SubCommand::Init => run::init(),
+                SubCommand::Bench(s) => {
+                    run::bench(s.socket_path)
+                        .wrap_err("can not run benchmark traffic against hstdb server")?;
                 }
-                SubCommand::Bench(s) => run::bench(s.socket_path),
                 SubCommand::Completion(o) => {
                     let mut cmd = Opt::command();
                     let name = cmd.get_name().to_string();
 
                     clap_complete::generate(o.shell, &mut cmd, name, &mut std::io::stdout());
-
-                    Ok(())
                 }
             },
-        )
+        }
+
+        Ok(())
     }
 }
