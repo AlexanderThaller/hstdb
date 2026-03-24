@@ -7,7 +7,6 @@ use crate::{
     client,
     config,
     entry::Entry,
-    message,
     message::{
         CommandFinished,
         CommandStart,
@@ -16,16 +15,14 @@ use crate::{
     },
     server,
     store,
-    store::{
-        Filter,
-        filter,
-    },
+    store::Filter,
 };
 use chrono::{
     DateTime,
     Local,
     Utc,
 };
+use color_eyre::eyre::WrapErr;
 use comfy_table::{
     Attribute,
     Cell,
@@ -49,30 +46,6 @@ use uuid::Uuid;
 /// Errors returned by the top-level runtime entry points.
 #[derive(Error, Debug)]
 pub enum Error {
-    /// Sending or receiving a client-side message failed.
-    #[error("{0}")]
-    Client(#[from] client::Error),
-
-    /// Building a message from environment data failed.
-    #[error("{0}")]
-    Message(#[from] message::Error),
-
-    /// Constructing the server failed.
-    #[error("{0}")]
-    ServerBuilder(#[from] server::BuilderError),
-
-    /// Running the server failed.
-    #[error("{0}")]
-    Server(#[from] server::Error),
-
-    /// Reading or writing persistent history failed.
-    #[error("{0}")]
-    Store(#[from] store::Error),
-
-    /// Building or applying a query filter failed.
-    #[error("{0}")]
-    Filter(#[from] filter::Error),
-
     /// No suitable base directory could be resolved on the current platform.
     #[error("can not get base directories")]
     GetBaseDirectories,
@@ -166,8 +139,10 @@ pub fn default(
     filter: &Filter<'_>,
     display: &TableDisplay,
     data_dir: PathBuf,
-) -> Result<(), Error> {
-    let entries = store::new(data_dir).get_entries(filter)?;
+) -> color_eyre::Result<()> {
+    let entries = store::new(data_dir.clone())
+        .get_entries(filter)
+        .wrap_err_with(|| format!("can not load history entries from {}", data_dir.display()))?;
 
     if display.format {
         default_format(display, entries);
@@ -178,9 +153,8 @@ pub fn default(
     }
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Prints entries as tab-separated rows.
-pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<(), Error> {
+pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> color_eyre::Result<()> {
     let mut header = vec!["tmn"];
 
     if display.host.is_show() {
@@ -211,9 +185,10 @@ pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> Result<
     if display.header.is_show() {
         handle
             .write_all(header.join("\t").as_bytes())
-            .map_err(Error::WriteStdout)?;
-
-        handle.write_all(b"\n").map_err(Error::WriteStdout)?;
+            .wrap_err("can not write history header to stdout")?;
+        handle
+            .write_all(b"\n")
+            .wrap_err("can not terminate history header line on stdout")?;
     }
 
     for entry in entries {
@@ -344,65 +319,107 @@ fn default_format_entry(
     Ok(())
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Records a command start event emitted by the zsh `zshaddhistory` hook.
 pub fn zsh_add_history(
     config: &config::Config,
     command: String,
     socket_path: PathBuf,
-) -> Result<(), Error> {
+) -> color_eyre::Result<()> {
     if config.ignore_space && command.starts_with(' ') {
         debug!("not recording a command starting with a space");
     } else {
-        let data = CommandStart::from_env(config, command)?;
-        client::new(socket_path).send(&Message::CommandStart(data))?;
+        let data = CommandStart::from_env(config, command)
+            .wrap_err("can not build command-start message from current shell environment")?;
+        client::new(socket_path.clone())
+            .send(&Message::CommandStart(data))
+            .wrap_err_with(|| {
+                format!(
+                    "can not send command-start message to hstdb socket {}",
+                    socket_path.display()
+                )
+            })?;
     }
 
     Ok(())
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Starts the local history server.
-pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> Result<(), Error> {
-    server::builder(cache_dir, data_dir, socket, true)
-        .build()?
-        .run()?;
+pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> color_eyre::Result<()> {
+    server::builder(cache_dir.clone(), data_dir.clone(), socket.clone(), true)
+        .build()
+        .wrap_err_with(|| {
+            format!(
+                "can not build hstdb server with cache {}, data dir {}, and socket {}",
+                cache_dir.display(),
+                data_dir.display(),
+                socket.display()
+            )
+        })?
+        .run()
+        .wrap_err_with(|| format!("can not run hstdb server on socket {}", socket.display()))?;
 
     Ok(())
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Requests a graceful server shutdown over the control socket.
-pub fn stop(socket_path: PathBuf) -> Result<(), Error> {
-    client::new(socket_path).send(&Message::Stop)?;
+pub fn stop(socket_path: PathBuf) -> color_eyre::Result<()> {
+    client::new(socket_path.clone())
+        .send(&Message::Stop)
+        .wrap_err_with(|| {
+            format!(
+                "can not send stop request to hstdb socket {}",
+                socket_path.display()
+            )
+        })?;
 
     Ok(())
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Disables history recording for the current session.
-pub fn disable(socket_path: PathBuf) -> Result<(), Error> {
-    let session_id = session_id_from_env()?;
-    client::new(socket_path).send(&Message::Disable(session_id))?;
+pub fn disable(socket_path: PathBuf) -> color_eyre::Result<()> {
+    let session_id = session_id_from_env()
+        .wrap_err("can not read session id from environment before disabling history")?;
+    client::new(socket_path.clone())
+        .send(&Message::Disable(session_id))
+        .wrap_err_with(|| {
+            format!(
+                "can not send disable request to hstdb socket {}",
+                socket_path.display()
+            )
+        })?;
 
     Ok(())
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Re-enables history recording for the current session.
-pub fn enable(socket_path: PathBuf) -> Result<(), Error> {
-    let session_id = session_id_from_env()?;
-    client::new(socket_path).send(&Message::Enable(session_id))?;
+pub fn enable(socket_path: PathBuf) -> color_eyre::Result<()> {
+    let session_id = session_id_from_env()
+        .wrap_err("can not read session id from environment before enabling history")?;
+    client::new(socket_path.clone())
+        .send(&Message::Enable(session_id))
+        .wrap_err_with(|| {
+            format!(
+                "can not send enable request to hstdb socket {}",
+                socket_path.display()
+            )
+        })?;
 
     Ok(())
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Records a command completion event emitted by the zsh `precmd` hook.
-pub fn precmd(socket_path: PathBuf) -> Result<(), Error> {
-    let data = CommandFinished::from_env()?;
+pub fn precmd(socket_path: PathBuf) -> color_eyre::Result<()> {
+    let data = CommandFinished::from_env()
+        .wrap_err("can not build command-finished message from current shell environment")?;
 
-    client::new(socket_path).send(&Message::CommandFinished(data))?;
+    client::new(socket_path.clone())
+        .send(&Message::CommandFinished(data))
+        .wrap_err_with(|| {
+            format!(
+                "can not send command-finished message to hstdb socket {}",
+                socket_path.display()
+            )
+        })?;
 
     Ok(())
 }
@@ -417,9 +434,8 @@ pub fn init() {
     println!("{}", include_str!("../../resources/init.zsh"));
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Continuously sends synthetic start and finish messages to the server.
-pub fn bench(socket_path: PathBuf) -> Result<(), Error> {
+pub fn bench(socket_path: PathBuf) -> color_eyre::Result<()> {
     let client = client::new(socket_path);
 
     let mut start = CommandStart {

@@ -10,6 +10,7 @@ use chrono::{
     DateTime,
     Utc,
 };
+use color_eyre::eyre::WrapErr;
 #[cfg(feature = "histdb-import")]
 use log::info;
 use log::warn;
@@ -128,7 +129,7 @@ pub enum Error {
 
 #[cfg(feature = "histdb-import")]
 /// Imports entries from the original `zsh-histdb` `SQLite` database.
-pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
+pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -140,14 +141,24 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
         command: String,
     }
 
-    let db = rusqlite::Connection::open(&import_file).map_err(Error::OpenSqliteDatabase)?;
+    let import_file = import_file.as_ref();
+
+    let db = rusqlite::Connection::open(import_file)
+        .map_err(Error::OpenSqliteDatabase)
+        .wrap_err_with(|| {
+            format!(
+                "can not open histdb sqlite database {}",
+                import_file.display()
+            )
+        })?;
 
     let mut stmt = db
         .prepare(
             "select * from history left join places on places.id=history.place_id
     left join commands on history.command_id=commands.id",
         )
-        .map_err(Error::PrepareSqliteQuery)?;
+        .map_err(Error::PrepareSqliteQuery)
+        .wrap_err("can not prepare histdb sqlite import query")?;
 
     let entries = stmt
         .query_map(params![], |row| {
@@ -163,12 +174,14 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
         })
         .map_err(Error::ConvertSqliteRow)?
         .collect::<Result<std::collections::BTreeSet<_>, _>>()
-        .map_err(Error::CollectEntries)?;
+        .map_err(Error::CollectEntries)
+        .wrap_err("can not collect entries from histdb sqlite import")?;
 
     info!("importing {:?} entries", entries.len());
 
     let mut session_ids = std::collections::HashMap::new();
 
+    let data_dir_display = data_dir.display().to_string();
     let store = crate::store::new(data_dir);
 
     for entry in entries {
@@ -219,7 +232,12 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
             command,
         };
 
-        store.add_entry(&entry)?;
+        store.add_entry(&entry).wrap_err_with(|| {
+            format!(
+                "can not write imported histdb entry into data dir {}",
+                data_dir_display
+            )
+        })?;
     }
 
     Ok(())
@@ -230,7 +248,7 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
     reason = "this function is too long and we should split it up"
 )]
 /// Imports entries from a zsh `HISTFILE`.
-pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
+pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,
@@ -238,7 +256,11 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
         command: String,
     }
 
-    let histfile = std::fs::File::open(import_file).map_err(Error::OpenHistfile)?;
+    let import_file = import_file.as_ref();
+
+    let histfile = std::fs::File::open(import_file)
+        .map_err(Error::OpenHistfile)
+        .wrap_err_with(|| format!("can not open histfile {}", import_file.display()))?;
     let reader = std::io::BufReader::new(histfile);
 
     let mut acc_time_finished: Option<DateTime<Utc>> = None;
@@ -333,6 +355,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
         });
     }
 
+    let data_dir_display = data_dir.display().to_string();
     let store = crate::store::new(data_dir);
 
     let hostname = hostname::get()
@@ -365,7 +388,12 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), 
             user,
         };
 
-        store.add_entry(&entry)?;
+        store.add_entry(&entry).wrap_err_with(|| {
+            format!(
+                "can not write imported histfile entry into data dir {}",
+                data_dir_display
+            )
+        })?;
     }
 
     Ok(())

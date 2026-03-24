@@ -355,8 +355,10 @@ impl Opt {
         match sub_command {
             None => {
                 let filter = Filter::new(&config)
-                    .directory(folder, in_current, no_subdirs)?
-                    .hostname(hostname, all_hosts)?
+                    .directory(folder, in_current, no_subdirs)
+                    .wrap_err("can not apply directory filters from CLI arguments")?
+                    .hostname(hostname, all_hosts)
+                    .wrap_err("can not apply hostname filters from CLI arguments")?
                     .count(entries_count)
                     .command(command, command_text, command_text_excluded)
                     .session(session_filter)
@@ -374,19 +376,33 @@ impl Opt {
                     status,
                 };
 
-                run::default(&filter, &display, data_dir)?;
+                run::default(&filter, &display, data_dir)
+                    .wrap_err("can not render history entries")?;
             }
             Some(sub_command) => match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
-                    run::zsh_add_history(&config, o.command, o.socket_path.socket_path)?;
+                    run::zsh_add_history(&config, o.command, o.socket_path.socket_path)
+                        .wrap_err("can not record command start from zshaddhistory")?;
                 }
                 SubCommand::Server(o) => {
-                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)?;
+                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
+                        .wrap_err("can not start hstdb server")?;
                 }
-                SubCommand::Stop(o) => run::stop(o.socket_path)?,
-                SubCommand::Disable(o) => run::disable(o.socket_path)?,
-                SubCommand::Enable(o) => run::enable(o.socket_path)?,
-                SubCommand::PreCmd(o) => run::precmd(o.socket_path)?,
+                SubCommand::Stop(o) => {
+                    run::stop(o.socket_path).wrap_err("can not stop hstdb server")?;
+                }
+                SubCommand::Disable(o) => {
+                    run::disable(o.socket_path)
+                        .wrap_err("can not disable history recording for this session")?;
+                }
+                SubCommand::Enable(o) => {
+                    run::enable(o.socket_path)
+                        .wrap_err("can not enable history recording for this session")?;
+                }
+                SubCommand::PreCmd(o) => {
+                    run::precmd(o.socket_path)
+                        .wrap_err("can not record command completion from precmd")?;
+                }
                 SubCommand::SessionID => run::session_id(),
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
@@ -404,7 +420,10 @@ impl Opt {
                     }
                 },
                 SubCommand::Init => run::init(),
-                SubCommand::Bench(s) => run::bench(s.socket_path)?,
+                SubCommand::Bench(s) => {
+                    run::bench(s.socket_path)
+                        .wrap_err("can not run benchmark traffic against hstdb server")?;
+                }
                 SubCommand::Completion(o) => {
                     let mut cmd = Opt::command();
                     let name = cmd.get_name().to_string();

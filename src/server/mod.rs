@@ -5,10 +5,7 @@ pub mod builder;
 /// Embedded key-value database used for transient server state.
 pub mod db;
 
-pub use builder::{
-    Builder,
-    Error as BuilderError,
-};
+pub use builder::Builder;
 
 use crate::{
     client,
