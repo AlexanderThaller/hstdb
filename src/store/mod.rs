@@ -6,7 +6,10 @@ pub mod filter;
 use crate::entry::Entry;
 pub use filter::Filter;
 use std::{
+    cmp::Reverse,
+    collections::BinaryHeap,
     fs,
+    io::BufReader,
     path::{
         Path,
         PathBuf,
@@ -105,10 +108,12 @@ impl Store {
 
     /// Reads, sorts, and filters entries from the persistent store.
     pub fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
-        let mut entries: Vec<_> = if let Some(hostname) = filter.get_hostname() {
+        let mut collector = EntryCollector::new(filter.count_limit());
+
+        if let Some(hostname) = filter.get_hostname() {
             let index_path = self.data_dir.join(format!("{hostname}.csv"));
 
-            Self::read_log_file(index_path)?
+            Self::read_log_file(index_path, filter, &mut collector)?;
         } else {
             let glob_string = self.data_dir.join("*.csv");
 
@@ -118,43 +123,126 @@ impl Store {
                 .collect::<Result<Vec<PathBuf>, glob::GlobError>>()
                 .map_err(Error::GlobIteration)?;
 
-            index_paths
-                .into_iter()
-                .map(Self::read_log_file)
-                .collect::<Result<Vec<Vec<_>>, Error>>()?
-                .into_iter()
-                .flatten()
-                .collect()
-        };
+            for index_path in index_paths {
+                Self::read_log_file(index_path, filter, &mut collector)?;
+            }
+        }
 
-        entries.sort();
-
-        let entries = filter.filter_entries(entries);
-
-        Ok(entries)
+        Ok(collector.finish())
     }
 
-    fn read_log_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<Entry>, Error> {
+    fn read_log_file<P: AsRef<Path>>(
+        file_path: P,
+        filter: &Filter<'_>,
+        collector: &mut EntryCollector,
+    ) -> Result<(), Error> {
         let file = std::fs::File::open(&file_path)
             .map_err(|err| Error::OpenLogFile(file_path.as_ref().to_path_buf(), err))?;
 
-        let reader = std::io::BufReader::new(file);
+        let reader = BufReader::with_capacity(256 * 1024, file);
 
-        Self::read_metadata(reader)
+        Self::read_metadata(reader, filter, collector)
             .map_err(|err| Error::ReadLogFile(file_path.as_ref().to_path_buf(), err))
     }
 
-    fn read_metadata<R: std::io::Read>(reader: R) -> Result<Vec<Entry>, csv::Error> {
-        let mut csv_reader = csv::ReaderBuilder::new().from_reader(reader);
+    fn read_metadata<R: std::io::Read>(
+        reader: R,
+        filter: &Filter<'_>,
+        collector: &mut EntryCollector,
+    ) -> Result<(), csv::Error> {
+        let mut csv_reader = csv::ReaderBuilder::new()
+            .buffer_capacity(256 * 1024)
+            .from_reader(reader);
 
-        csv_reader
-            .deserialize()
-            .collect::<Result<Vec<Entry>, csv::Error>>()
+        for entry in csv_reader.deserialize() {
+            let entry = entry?;
+
+            if filter.matches_entry(&entry) {
+                collector.push(entry);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+enum EntryCollector {
+    All(Vec<Entry>),
+    Top {
+        count: usize,
+        entries: BinaryHeap<Reverse<Entry>>,
+    },
+}
+
+impl EntryCollector {
+    fn new(count: usize) -> Self {
+        if count == 0 {
+            Self::All(Vec::new())
+        } else {
+            Self::Top {
+                count,
+                entries: BinaryHeap::with_capacity(count),
+            }
+        }
+    }
+
+    fn push(&mut self, entry: Entry) {
+        match self {
+            Self::All(entries) => entries.push(entry),
+            Self::Top { count, entries } => {
+                if entries.len() < *count {
+                    entries.push(Reverse(entry));
+                    return;
+                }
+
+                if entries.peek().is_some_and(|smallest| entry > smallest.0) {
+                    entries.pop();
+                    entries.push(Reverse(entry));
+                }
+            }
+        }
+    }
+
+    fn finish(self) -> Vec<Entry> {
+        let mut entries = match self {
+            Self::All(entries) => entries,
+            Self::Top { entries, .. } => entries.into_iter().map(|entry| entry.0).collect(),
+        };
+
+        entries.sort();
+        entries
     }
 }
 
 #[cfg(test)]
 mod test {
+    use super::EntryCollector;
+    use crate::{
+        config::Config,
+        entry::Entry,
+        store::Filter,
+    };
+    use chrono::{
+        TimeZone,
+        Utc,
+    };
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    fn entry(second: i64, command: &str) -> Entry {
+        Entry {
+            time_finished: Utc.timestamp_opt(second, 0).unwrap(),
+            time_start: Utc.timestamp_opt(second - 1, 0).unwrap(),
+            hostname: "host".to_string(),
+            command: command.to_string(),
+            pwd: PathBuf::from("/tmp"),
+            result: 0,
+            session_id: Uuid::nil(),
+            user: "user".to_string(),
+        }
+    }
+
     #[test]
     fn dot_filename_with_extension() {
         let folder_path = std::path::PathBuf::from("/tmp");
@@ -166,5 +254,39 @@ mod test {
 
         assert_ne!(bad, expected);
         assert_eq!(good, expected);
+    }
+
+    #[test]
+    fn entry_collector_keeps_highest_entries() {
+        let mut collector = EntryCollector::new(2);
+
+        collector.push(entry(3, "third"));
+        collector.push(entry(1, "first"));
+        collector.push(entry(4, "fourth"));
+        collector.push(entry(2, "second"));
+
+        let entries = collector.finish();
+
+        assert_eq!(entries, vec![entry(3, "third"), entry(4, "fourth")]);
+    }
+
+    #[test]
+    fn get_entries_applies_filter_before_count_limit() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let store = crate::store::new(data_dir.path().to_path_buf());
+
+        store.add_entry(&entry(1, "keep-one")).unwrap();
+        store.add_entry(&entry(2, "drop-two")).unwrap();
+        store.add_entry(&entry(3, "keep-three")).unwrap();
+        store.add_entry(&entry(4, "keep-four")).unwrap();
+
+        let config = Config::default();
+        let filter = Filter::new(&config)
+            .command(None, Some(regex::Regex::new("^keep").unwrap()), None)
+            .count(2);
+
+        let entries = store.get_entries(&filter).unwrap();
+
+        assert_eq!(entries, vec![entry(3, "keep-three"), entry(4, "keep-four")]);
     }
 }
