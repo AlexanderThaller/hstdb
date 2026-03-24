@@ -6,18 +6,18 @@
 
 /// Client for sending control and history messages to a running `hstdb`
 /// server.
-pub mod client;
+pub(crate) mod client;
 /// Configuration loading and defaults for `hstdb`.
-pub mod config;
+pub(crate) mod config;
 /// Normalized history entry type written to persistent storage.
-pub mod entry;
+pub(crate) mod entry;
 /// Message types exchanged between the shell hooks, client, and server.
-pub mod message;
+pub(crate) mod message;
 /// Command-line option types for the `hstdb` binary.
-pub mod opt;
+pub(crate) mod opt;
 /// High-level runtime entry points that implement CLI subcommands.
-pub mod run;
+pub(crate) mod run;
 /// Server-side socket handling and transient command state management.
-pub mod server;
+pub(crate) mod server;
 /// Persistent history storage and filtering utilities.
-pub mod store;
+pub(crate) mod store;

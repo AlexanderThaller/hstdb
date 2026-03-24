@@ -30,7 +30,7 @@ use uuid::Uuid;
 
 /// Errors returned while importing history from external formats.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// Sending imported entries through the client failed.
     #[error("{0}")]
     Client(#[from] client::Error),
@@ -129,7 +129,7 @@ pub enum Error {
 
 #[cfg(feature = "histdb-import")]
 /// Imports entries from the original `zsh-histdb` `SQLite` database.
-pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -245,7 +245,7 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::R
     reason = "this function is too long and we should split it up"
 )]
 /// Imports entries from a zsh `HISTFILE`.
-pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,

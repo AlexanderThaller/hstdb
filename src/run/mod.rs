@@ -1,7 +1,7 @@
 //! High-level operations that back the `hstdb` CLI.
 
 /// Import helpers for migrating existing shell history into `hstdb`.
-pub mod import;
+pub(crate) mod import;
 #[cfg(feature = "generate-readme")]
 mod readme;
 
@@ -47,7 +47,7 @@ use uuid::Uuid;
 
 /// Errors returned by the top-level runtime entry points.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// No suitable base directory could be resolved on the current platform.
     #[error("can not get base directories")]
     GetBaseDirectories,
@@ -76,22 +76,22 @@ pub enum Error {
 
 /// Controls which columns are shown when rendering history output.
 #[derive(Debug)]
-pub struct TableDisplay {
+pub(crate) struct TableDisplay {
     /// Chooses between table formatting and tab-separated output.
-    pub format: bool,
+    pub(crate) format: bool,
 
     /// Controls whether the duration column is rendered.
-    pub duration: Display,
+    pub(crate) duration: Display,
     /// Controls whether the header row is rendered.
-    pub header: Display,
+    pub(crate) header: Display,
     /// Controls whether the host column is rendered.
-    pub host: Display,
+    pub(crate) host: Display,
     /// Controls whether the working-directory column is rendered.
-    pub pwd: Display,
+    pub(crate) pwd: Display,
     /// Controls whether the session-id column is rendered.
-    pub session: Display,
+    pub(crate) session: Display,
     /// Controls whether the exit-status column is rendered.
-    pub status: Display,
+    pub(crate) status: Display,
 }
 
 impl Default for TableDisplay {
@@ -111,7 +111,7 @@ impl Default for TableDisplay {
 
 /// Simple visibility toggle used by [`TableDisplay`].
 #[derive(Debug, Default)]
-pub enum Display {
+pub(crate) enum Display {
     /// Hide the associated field or column.
     #[default]
     Hide,
@@ -129,19 +129,19 @@ impl Display {
 
     #[must_use]
     /// Returns [`Display::Hide`] when `b` is true, otherwise [`Display::Show`].
-    pub const fn should_hide(b: bool) -> Self {
+    pub(crate) const fn should_hide(b: bool) -> Self {
         if b { Self::Hide } else { Self::Show }
     }
 
     #[must_use]
     /// Returns [`Display::Show`] when `b` is true, otherwise [`Display::Hide`].
-    pub const fn should_show(b: bool) -> Self {
+    pub(crate) const fn should_show(b: bool) -> Self {
         if b { Self::Show } else { Self::Hide }
     }
 }
 
 /// Loads entries from storage and prints them using the selected display mode.
-pub fn default(
+pub(crate) fn default(
     filter: &Filter<'_>,
     display: &TableDisplay,
     data_dir: &Path,
@@ -161,13 +161,16 @@ pub fn default(
 
 #[cfg(feature = "generate-readme")]
 /// Regenerates `README.md` help sections from the clap command tree.
-pub fn generate_readme(readme_path: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn generate_readme(readme_path: PathBuf) -> color_eyre::Result<()> {
     readme::generate(readme_path).wrap_err("generating README file from clap help")?;
     Ok(())
 }
 
 /// Prints entries as tab-separated rows.
-pub fn default_no_format(display: &TableDisplay, entries: Vec<Entry>) -> color_eyre::Result<()> {
+pub(crate) fn default_no_format(
+    display: &TableDisplay,
+    entries: Vec<Entry>,
+) -> color_eyre::Result<()> {
     let mut header = vec!["tmn"];
 
     if display.host.is_show() {
@@ -256,7 +259,7 @@ where
 }
 
 /// Prints entries using the formatted table renderer.
-pub fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
+pub(crate) fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
     let mut table = Table::new();
     table.load_preset("                   ");
     table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
@@ -333,7 +336,7 @@ fn default_format_entry(
 }
 
 /// Records a command start event emitted by the zsh `zshaddhistory` hook.
-pub fn zsh_add_history(
+pub(crate) fn zsh_add_history(
     config: &config::Config,
     command: String,
     socket_path: &Path,
@@ -357,7 +360,7 @@ pub fn zsh_add_history(
 }
 
 /// Starts the local history server.
-pub fn server(socket: &Path, data_dir: &Path, state_dir: &Path) -> color_eyre::Result<()> {
+pub(crate) fn server(socket: &Path, data_dir: &Path, state_dir: &Path) -> color_eyre::Result<()> {
     server::builder(
         data_dir.to_path_buf(),
         state_dir.to_path_buf(),
@@ -380,7 +383,7 @@ pub fn server(socket: &Path, data_dir: &Path, state_dir: &Path) -> color_eyre::R
 }
 
 /// Requests a graceful server shutdown over the control socket.
-pub fn stop(socket_path: &Path) -> color_eyre::Result<()> {
+pub(crate) fn stop(socket_path: &Path) -> color_eyre::Result<()> {
     client::new(socket_path.to_path_buf())
         .send(&Message::Stop)
         .wrap_err_with(|| {
@@ -394,7 +397,7 @@ pub fn stop(socket_path: &Path) -> color_eyre::Result<()> {
 }
 
 /// Disables history recording for the current session.
-pub fn disable(socket_path: &Path) -> color_eyre::Result<()> {
+pub(crate) fn disable(socket_path: &Path) -> color_eyre::Result<()> {
     let session_id = session_id_from_env()
         .wrap_err("can not read session id from environment before disabling history")?;
     client::new(socket_path.to_path_buf())
@@ -410,7 +413,7 @@ pub fn disable(socket_path: &Path) -> color_eyre::Result<()> {
 }
 
 /// Re-enables history recording for the current session.
-pub fn enable(socket_path: &Path) -> color_eyre::Result<()> {
+pub(crate) fn enable(socket_path: &Path) -> color_eyre::Result<()> {
     let session_id = session_id_from_env()
         .wrap_err("can not read session id from environment before enabling history")?;
     client::new(socket_path.to_path_buf())
@@ -426,7 +429,7 @@ pub fn enable(socket_path: &Path) -> color_eyre::Result<()> {
 }
 
 /// Records a command completion event emitted by the zsh `precmd` hook.
-pub fn precmd(socket_path: &Path) -> color_eyre::Result<()> {
+pub(crate) fn precmd(socket_path: &Path) -> color_eyre::Result<()> {
     let data = CommandFinished::from_env()
         .wrap_err("can not build command-finished message from current shell environment")?;
 
@@ -443,17 +446,17 @@ pub fn precmd(socket_path: &Path) -> color_eyre::Result<()> {
 }
 
 /// Prints a fresh session identifier to stdout.
-pub fn session_id() {
+pub(crate) fn session_id() {
     println!("{}", Uuid::new_v4());
 }
 
 /// Prints the bundled zsh initialization script to stdout.
-pub fn init() {
+pub(crate) fn init() {
     println!("{}", include_str!("../../resources/init.zsh"));
 }
 
 /// Continuously sends synthetic start and finish messages to the server.
-pub fn bench(socket_path: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn bench(socket_path: PathBuf) -> color_eyre::Result<()> {
     let client = client::new(socket_path);
 
     let mut start = CommandStart {

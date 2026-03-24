@@ -15,30 +15,30 @@ use uuid::Uuid;
 
 /// A fully materialized shell history entry persisted by `hstdb`.
 #[derive(Debug, Serialize, Deserialize, Ord, PartialOrd, PartialEq, Eq)]
-pub struct Entry {
+pub(crate) struct Entry {
     /// Timestamp at which the command finished.
-    pub time_finished: DateTime<Utc>,
+    pub(crate) time_finished: DateTime<Utc>,
     /// Timestamp at which the command started.
-    pub time_start: DateTime<Utc>,
+    pub(crate) time_start: DateTime<Utc>,
     /// Hostname on which the command ran.
-    pub hostname: String,
+    pub(crate) hostname: String,
     /// Command text after normalization.
-    pub command: String,
+    pub(crate) command: String,
     /// Working directory in which the command ran.
-    pub pwd: PathBuf,
+    pub(crate) pwd: PathBuf,
     /// Exit status reported by the shell.
-    pub result: u16,
+    pub(crate) result: u16,
     /// Session identifier used to correlate start and finish messages.
-    pub session_id: Uuid,
+    pub(crate) session_id: Uuid,
     /// User that ran the command.
-    pub user: String,
+    pub(crate) user: String,
 }
 
 impl Entry {
     /// Builds a persistent entry from the corresponding start and finish
     /// messages.
     #[must_use]
-    pub fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
+    pub(crate) fn from_messages(start: CommandStart, finish: &CommandFinished) -> Self {
         let command = start.command.trim_end();
 
         let command = command
