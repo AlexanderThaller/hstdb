@@ -34,6 +34,10 @@ pub(crate) enum Error {
     #[error("can not serialize entry: {0}")]
     SerializeEntry(csv::Error),
 
+    /// Flushing an appended history entry to disk failed.
+    #[error("can not flush log file: {0}: {1}")]
+    FlushLogFile(PathBuf, #[source] std::io::Error),
+
     /// Building the glob used to read host files failed.
     #[error("glob is not valid: {0}")]
     InvalidGlob(glob::PatternError),
@@ -117,10 +121,17 @@ impl Store {
         let mut writer = builder.from_writer(index_file);
 
         writer.serialize(entry).map_err(Error::SerializeEntry)?;
+        writer
+            .flush()
+            .map_err(|err| Error::FlushLogFile(file_path.clone(), err))?;
 
         #[cfg(feature = "sqlite-cache")]
         if let Some(cache_path) = &self.cache_path {
-            cache::append_entry(cache_path, entry)?;
+            match cache::append_entry(cache_path, entry) {
+                Ok(()) => {}
+                Err(cache::Error::SchemaVersionMismatch(_)) => self.sync_cache()?,
+                Err(err) => return Err(Error::from(err)),
+            }
         }
 
         Ok(())
@@ -146,7 +157,14 @@ impl Store {
             }
 
             if cache_path.exists() {
-                return cache::get_entries(cache_path, filter).map_err(Error::from);
+                match cache::get_entries(cache_path, filter) {
+                    Ok(entries) => return Ok(entries),
+                    Err(cache::Error::SchemaVersionMismatch(_)) => {
+                        self.sync_cache()?;
+                        return cache::get_entries(cache_path, filter).map_err(Error::from);
+                    }
+                    Err(err) => return Err(Error::from(err)),
+                }
             }
         }
 
@@ -295,6 +313,7 @@ mod test {
         }
     }
 
+    #[cfg(feature = "sqlite-cache")]
     fn tied_entry(time_finished: i64, time_start: i64, command: &str, session_id: Uuid) -> Entry {
         Entry {
             time_finished: Utc.timestamp_opt(time_finished, 0).unwrap(),
@@ -306,6 +325,35 @@ mod test {
             session_id,
             user: "user".to_string(),
         }
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    fn write_outdated_cache_schema(cache_path: &std::path::Path) {
+        let conn = rusqlite::Connection::open(cache_path).unwrap();
+
+        conn.execute_batch(
+            "CREATE TABLE metadata (
+                 key TEXT PRIMARY KEY,
+                 value TEXT NOT NULL
+             );
+             CREATE TABLE entries (
+                 hostname TEXT NOT NULL,
+                 time_finished INTEGER NOT NULL,
+                 time_start INTEGER NOT NULL,
+                 command TEXT NOT NULL,
+                 pwd BLOB NOT NULL,
+                 result INTEGER NOT NULL,
+                 session_id BLOB NOT NULL,
+                 user TEXT NOT NULL
+             );",
+        )
+        .unwrap();
+
+        conn.execute(
+            "INSERT INTO metadata (key, value) VALUES ('schema_version', '1')",
+            [],
+        )
+        .unwrap();
     }
 
     #[test]
@@ -396,5 +444,40 @@ mod test {
         let cache_entries = cache_store.get_entries(&filter).unwrap();
 
         assert_eq!(cache_entries, csv_entries);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn get_entries_rebuilds_cache_on_schema_version_mismatch() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let csv_store = crate::store::new(data_dir.path().to_path_buf());
+        let cache_store =
+            crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path.clone());
+
+        csv_store.add_entry(&entry(1, "first")).unwrap();
+        write_outdated_cache_schema(&cache_path);
+
+        let entries = cache_store.get_entries(&Filter::default()).unwrap();
+
+        assert_eq!(entries, vec![entry(1, "first")]);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn add_entry_rebuilds_cache_on_schema_version_mismatch() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let cache_store =
+            crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path.clone());
+
+        write_outdated_cache_schema(&cache_path);
+        cache_store.add_entry(&entry(1, "first")).unwrap();
+
+        let entries = cache_store.get_entries(&Filter::default()).unwrap();
+
+        assert_eq!(entries, vec![entry(1, "first")]);
     }
 }

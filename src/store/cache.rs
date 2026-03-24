@@ -29,7 +29,7 @@ use std::os::unix::ffi::{
 };
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
-const SCHEMA_VERSION: &str = "1";
+const SCHEMA_VERSION: &str = "2";
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {
@@ -99,15 +99,8 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
     }
 
     sql.push_str(
-        " ORDER BY \
-         time_finished DESC, \
-         time_start DESC, \
-         hostname DESC, \
-         command DESC, \
-         pwd DESC, \
-         result DESC, \
-         session_id DESC, \
-         user DESC",
+        " ORDER BY time_finished DESC, time_start DESC, hostname DESC, command DESC, pwd DESC, \
+         result DESC, session_id DESC, user DESC",
     );
 
     let mut stmt = conn
@@ -156,7 +149,7 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
 }
 
 pub(crate) fn sync_from_csv(data_dir: &Path, cache_path: &Path) -> Result<(), Error> {
-    let mut conn = open_rw(cache_path)?;
+    let mut conn = open_rw_for_sync(cache_path)?;
     let tx = conn
         .transaction()
         .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
@@ -199,6 +192,33 @@ pub(crate) fn sync_from_csv(data_dir: &Path, cache_path: &Path) -> Result<(), Er
 }
 
 fn open_rw(cache_path: &Path) -> Result<Connection, Error> {
+    ensure_cache_parent(cache_path)?;
+
+    let conn = open_connection(cache_path)?;
+    configure_connection(&conn, cache_path)?;
+    initialize_schema(&conn, cache_path)?;
+
+    Ok(conn)
+}
+
+fn open_rw_for_sync(cache_path: &Path) -> Result<Connection, Error> {
+    ensure_cache_parent(cache_path)?;
+
+    let conn = open_connection(cache_path)?;
+    configure_connection(&conn, cache_path)?;
+
+    match initialize_schema(&conn, cache_path) {
+        Ok(()) => Ok(conn),
+        Err(Error::SchemaVersionMismatch(_)) => {
+            reset_schema(&conn, cache_path)?;
+            initialize_schema(&conn, cache_path)?;
+            Ok(conn)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+fn ensure_cache_parent(cache_path: &Path) -> Result<(), Error> {
     if let Some(parent) = cache_path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -207,14 +227,20 @@ fn open_rw(cache_path: &Path) -> Result<Connection, Error> {
             .map_err(|err| Error::CreateCacheDirectory(parent.to_path_buf(), err))?;
     }
 
-    let conn = Connection::open_with_flags(
+    Ok(())
+}
+
+fn open_connection(cache_path: &Path) -> Result<Connection, Error> {
+    Connection::open_with_flags(
         cache_path,
         OpenFlags::SQLITE_OPEN_CREATE
             | OpenFlags::SQLITE_OPEN_READ_WRITE
             | OpenFlags::SQLITE_OPEN_URI,
     )
-    .map_err(|err| Error::OpenDatabase(cache_path.to_path_buf(), err))?;
+    .map_err(|err| Error::OpenDatabase(cache_path.to_path_buf(), err))
+}
 
+fn configure_connection(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
     conn.busy_timeout(BUSY_TIMEOUT)
         .map_err(|err| Error::ConfigureDatabase(cache_path.to_path_buf(), err))?;
     conn.pragma_update(None, "journal_mode", "WAL")
@@ -222,9 +248,7 @@ fn open_rw(cache_path: &Path) -> Result<Connection, Error> {
     conn.pragma_update(None, "synchronous", "NORMAL")
         .map_err(|err| Error::ConfigureDatabase(cache_path.to_path_buf(), err))?;
 
-    initialize_schema(&conn, cache_path)?;
-
-    Ok(conn)
+    Ok(())
 }
 
 fn initialize_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
@@ -290,6 +314,20 @@ fn initialize_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> 
             Ok(())
         }
     }
+}
+
+fn reset_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
+    conn.execute_batch(
+        "DROP INDEX IF EXISTS entries_host_finished_idx;
+         DROP INDEX IF EXISTS entries_finished_idx;
+         DROP INDEX IF EXISTS entries_host_order_idx;
+         DROP INDEX IF EXISTS entries_order_idx;
+         DROP TABLE IF EXISTS entries;
+         DROP TABLE IF EXISTS metadata;",
+    )
+    .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
+
+    Ok(())
 }
 
 fn insert_entry(conn: &Connection, cache_path: &Path, entry: &Entry) -> Result<(), Error> {
