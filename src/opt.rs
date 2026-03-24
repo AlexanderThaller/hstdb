@@ -9,7 +9,6 @@ use directories::{
     BaseDirs,
     ProjectDirs,
 };
-use log::error;
 use regex::Regex;
 use thiserror::Error;
 
