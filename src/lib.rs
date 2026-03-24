@@ -21,3 +21,5 @@ pub mod run;
 pub mod server;
 /// Persistent history storage and filtering utilities.
 pub mod store;
+/// Shared crate version utilities.
+pub mod version;

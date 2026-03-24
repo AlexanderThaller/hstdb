@@ -47,11 +47,18 @@ use crate::{
         CommandFinished,
         CommandStart,
         Message,
+        Response,
     },
     store::Store,
 };
 
 const BUFFER_SIZE: usize = 16_384;
+
+#[derive(Debug)]
+struct ReceivedDatagram {
+    data: Vec<u8>,
+    reply_path: Option<PathBuf>,
+}
 
 /// Errors returned while receiving, decoding, and processing server messages.
 #[derive(Error, Debug)]
@@ -61,8 +68,8 @@ pub enum Error {
     ReceiveFromSocket(std::io::Error),
 
     /// Forwarding received bytes to the processing thread failed.
-    #[error("can not send received data to processing: {0}")]
-    SendBuffer(flume::SendError<Vec<u8>>),
+    #[error("can not send received data to processing")]
+    SendBuffer,
 
     /// Deserializing a received message failed.
     #[error("can not deserialize message: {0}")]
@@ -75,6 +82,10 @@ pub enum Error {
     /// Removing the socket file during shutdown failed.
     #[error("can not remove socket: {0}")]
     RemoveSocket(std::io::Error),
+
+    /// Removing the socket version file during shutdown failed.
+    #[error("can not remove socket version file {0}: {1}")]
+    RemoveSocketVersion(PathBuf, std::io::Error),
 
     /// Installing the `Ctrl+C` handler failed.
     #[error("can not setup ctrlc handler: {0}")]
@@ -96,6 +107,14 @@ pub enum Error {
     /// Persisting a finished entry to the store failed.
     #[error("can not add to store: {0}")]
     AddStore(crate::store::Error),
+
+    /// Serializing the server response failed.
+    #[error("can not serialize response: {0}")]
+    SerializeResponse(bitcode::Error),
+
+    /// Sending the server response to the client failed.
+    #[error("can not send response to client socket {0}: {1}")]
+    SendResponse(PathBuf, std::io::Error),
 }
 
 /// Running `hstdb` server instance.
@@ -129,12 +148,17 @@ pub fn builder(
 impl Server {
     /// Starts the receiver and processor threads and blocks until shutdown.
     pub fn run(self) -> color_eyre::Result<()> {
+        let processor_socket = self
+            .socket
+            .try_clone()
+            .wrap_err("Failed to clone server socket for responses")?;
         let data_sender = Self::start_processor(
             Arc::clone(&self.stopping),
             self.wait_group.clone(),
             self.db.clone(),
             self.store,
             self.socket_path.clone(),
+            processor_socket,
         );
 
         Self::start_receiver(
@@ -153,6 +177,9 @@ impl Server {
         self.wait_group.wait();
 
         std::fs::remove_file(&self.socket_path).map_err(Error::RemoveSocket)?;
+        let version_path = client::socket_version_path(&self.socket_path);
+        std::fs::remove_file(&version_path)
+            .map_err(|err| Error::RemoveSocketVersion(version_path, err))?;
 
         self.db
             .persist()
@@ -165,8 +192,7 @@ impl Server {
         ctrlc::set_handler(move || {
             stopping.store(true, Ordering::SeqCst);
 
-            let client = client::new(socket_path.clone());
-            if let Err(err) = client.send(&Message::Stop) {
+            if let Err(err) = Self::send_one_way(&socket_path, &Message::Stop) {
                 warn!("{err}");
             }
         })
@@ -179,7 +205,7 @@ impl Server {
         stopping: Arc<AtomicBool>,
         wait_group: WaitGroup,
         socket: UnixDatagram,
-        data_sender: Sender<Vec<u8>>,
+        data_sender: Sender<ReceivedDatagram>,
     ) {
         thread::spawn(move || {
             loop {
@@ -196,15 +222,18 @@ impl Server {
         });
     }
 
-    fn receive(socket: &UnixDatagram, data_sender: &Sender<Vec<u8>>) -> Result<(), Error> {
+    fn receive(socket: &UnixDatagram, data_sender: &Sender<ReceivedDatagram>) -> Result<(), Error> {
         let mut buffer = [0_u8; BUFFER_SIZE];
-        let (written, _) = socket
+        let (written, address) = socket
             .recv_from(&mut buffer)
             .map_err(Error::ReceiveFromSocket)?;
 
         data_sender
-            .send(buffer[0..written].to_vec())
-            .map_err(Error::SendBuffer)?;
+            .send(ReceivedDatagram {
+                data: buffer[0..written].to_vec(),
+                reply_path: address.as_pathname().map(ToOwned::to_owned),
+            })
+            .map_err(|_| Error::SendBuffer)?;
 
         Ok(())
     }
@@ -215,7 +244,8 @@ impl Server {
         db: Db,
         store: Store,
         socket_path: PathBuf,
-    ) -> Sender<Vec<u8>> {
+        socket: UnixDatagram,
+    ) -> Sender<ReceivedDatagram> {
         let (data_sender, data_receiver) = flume::bounded(10_000);
 
         thread::spawn(move || {
@@ -224,17 +254,27 @@ impl Server {
                     break;
                 }
 
-                if let Err(err) =
-                    Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
-                {
+                if let Err(err) = Self::process(
+                    &stopping,
+                    &data_receiver,
+                    &db,
+                    &store,
+                    &socket_path,
+                    &socket,
+                ) {
                     warn!("{err}");
                 }
             }
 
             while !data_receiver.is_empty() {
-                if let Err(err) =
-                    Self::process(&stopping, &data_receiver, &db, &store, &socket_path)
-                {
+                if let Err(err) = Self::process(
+                    &stopping,
+                    &data_receiver,
+                    &db,
+                    &store,
+                    &socket_path,
+                    &socket,
+                ) {
                     warn!("{err}");
                 }
             }
@@ -247,38 +287,47 @@ impl Server {
 
     fn process(
         stopping: &Arc<AtomicBool>,
-        data_receiver: &Receiver<Vec<u8>>,
+        data_receiver: &Receiver<ReceivedDatagram>,
         db: &Db,
         store: &Store,
         socket_path: impl AsRef<Path>,
+        socket: &UnixDatagram,
     ) -> color_eyre::Result<()> {
-        let data = data_receiver.recv().map_err(Error::ReceiveData)?;
-        let message = bitcode::deserialize(&data).map_err(Error::DeserializeMessage)?;
+        let received = data_receiver.recv().map_err(Error::ReceiveData)?;
+        let result = match bitcode::deserialize(&received.data) {
+            Err(err) => Err(Error::DeserializeMessage(err).into()),
+            Ok(message) => match message {
+                Message::Stop => {
+                    stopping.store(true, Ordering::SeqCst);
 
-        match message {
-            Message::Stop => {
-                stopping.store(true, Ordering::SeqCst);
+                    if let Err(err) = Self::send_one_way(socket_path.as_ref(), &Message::Stop) {
+                        warn!("{err}");
+                    }
 
-                let client = client::new(socket_path.as_ref().to_path_buf());
-                if let Err(err) = client.send(&Message::Stop) {
-                    warn!("{err}");
+                    Ok(())
                 }
+                Message::CommandStart(data) => Self::command_start(db, &data),
+                Message::CommandFinished(data) => Self::command_finished(db, store, &data),
+                Message::Disable(uuid) => {
+                    Self::disable_session(db, &uuid);
 
-                Ok(())
-            }
-            Message::CommandStart(data) => Self::command_start(db, &data),
-            Message::CommandFinished(data) => Self::command_finished(db, store, &data),
-            Message::Disable(uuid) => {
-                Self::disable_session(db, &uuid);
+                    Ok(())
+                }
+                Message::Enable(uuid) => {
+                    Self::enable_session(db, &uuid);
 
-                Ok(())
-            }
-            Message::Enable(uuid) => {
-                Self::enable_session(db, &uuid);
+                    Ok(())
+                }
+            },
+        };
 
-                Ok(())
-            }
-        }
+        let response = match &result {
+            Ok(()) => Response::Ok,
+            Err(err) => Response::Error(err.to_string()),
+        };
+        Self::respond(socket, received.reply_path.as_deref(), &response)?;
+
+        result
     }
 
     fn command_start(db: &Db, data: &CommandStart) -> color_eyre::Result<()> {
@@ -321,5 +370,38 @@ impl Server {
 
     fn enable_session(db: &Db, uuid: &Uuid) {
         db.enable_session(uuid);
+    }
+
+    fn respond(
+        socket: &UnixDatagram,
+        reply_path: Option<&Path>,
+        response: &Response,
+    ) -> Result<(), Error> {
+        let Some(reply_path) = reply_path else {
+            return Ok(());
+        };
+
+        let data = bitcode::serialize(response).map_err(Error::SerializeResponse)?;
+        socket
+            .send_to(&data, reply_path)
+            .map_err(|err| Error::SendResponse(reply_path.to_path_buf(), err))?;
+
+        Ok(())
+    }
+
+    fn send_one_way(socket_path: &Path, message: &Message) -> color_eyre::Result<()> {
+        let socket = UnixDatagram::unbound().wrap_err("Failed to create wakeup socket")?;
+        socket.connect(socket_path).wrap_err_with(|| {
+            format!(
+                "Failed to connect wakeup socket to {}",
+                socket_path.display()
+            )
+        })?;
+        let data = bitcode::serialize(message).wrap_err("Failed to serialize wakeup message")?;
+        socket.send(&data).wrap_err_with(|| {
+            format!("Failed to send wakeup message to {}", socket_path.display())
+        })?;
+
+        Ok(())
     }
 }

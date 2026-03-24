@@ -2,7 +2,11 @@ use super::{
     Server,
     db,
 };
-use crate::store;
+use crate::{
+    client,
+    store,
+    version::VERSION,
+};
 use color_eyre::eyre::WrapErr;
 use crossbeam_utils::sync::WaitGroup;
 use std::{
@@ -30,6 +34,10 @@ pub enum Error {
     #[error("can not bind to socket at path {0}: {1}")]
     BindSocket(PathBuf, std::io::Error),
 
+    /// Writing the socket version metadata failed.
+    #[error("can not write socket version file {0}: {1}")]
+    WriteSocketVersion(PathBuf, std::io::Error),
+
     /// Initializing the transient server database failed.
     #[error("{0}")]
     Db(#[from] db::Error),
@@ -53,6 +61,9 @@ impl Builder {
         std::fs::create_dir_all(socket_path_parent).map_err(Error::CreateSocketPathParent)?;
         let socket = UnixDatagram::bind(&self.socket)
             .map_err(|err| Error::BindSocket(self.socket.clone(), err))?;
+        let version_path = client::socket_version_path(&self.socket);
+        std::fs::write(&version_path, VERSION)
+            .map_err(|err| Error::WriteSocketVersion(version_path, err))?;
 
         let store = store::new(self.data_dir);
 

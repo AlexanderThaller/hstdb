@@ -14,6 +14,7 @@ mod opt;
 mod run;
 mod server;
 mod store;
+mod version;
 
 use opt::Opt;
 

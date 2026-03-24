@@ -5,12 +5,14 @@
 
 use pretty_assertions::assert_eq;
 use std::{
+    os::unix::net::UnixDatagram,
     path::PathBuf,
     sync::{
         Arc,
         Barrier,
     },
     thread,
+    time::Duration,
 };
 
 use chrono::Utc;
@@ -24,6 +26,7 @@ use hstdb::{
         CommandFinished,
         CommandStart,
         Message,
+        Response,
     },
     server,
     store::{
@@ -38,6 +41,7 @@ struct TestClient {
     barrier_stop: Arc<Barrier>,
     data_dir: PathBuf,
     state_dir: PathBuf,
+    socket_path: PathBuf,
 
     keep_datadir: bool,
 }
@@ -52,6 +56,10 @@ impl Drop for TestClient {
             std::fs::remove_dir_all(&self.data_dir).expect("Failed to remove data dir");
         }
     }
+}
+
+fn version_file_path(socket_path: &std::path::Path) -> PathBuf {
+    PathBuf::from(format!("{}.version", socket_path.display()))
 }
 
 fn create_client_and_server(keep_datadir: bool) -> TestClient {
@@ -92,13 +100,14 @@ fn create_client_and_server(keep_datadir: bool) -> TestClient {
 
     barrier_start.wait();
 
-    let client = client::new(socket);
+    let client = client::new(socket.clone());
 
     TestClient {
         client,
         barrier_stop,
         data_dir,
         state_dir,
+        socket_path: socket,
         keep_datadir,
     }
 }
@@ -384,4 +393,75 @@ fn write_newline_command() {
     dbg!(&entries);
 
     assert_eq!(entries.len(), 0);
+}
+
+#[test]
+fn client_reports_server_processing_errors() {
+    let client = create_client_and_server(false);
+    let err = client
+        .client
+        .send(&Message::CommandFinished(CommandFinished {
+            session_id: Uuid::new_v4(),
+            time_stamp: Utc::now(),
+            result: 0,
+        }))
+        .unwrap_err();
+
+    assert!(matches!(err, client::Error::ServerError(_)));
+    assert!(
+        err.to_string()
+            .contains("command for session not started yet")
+    );
+
+    client.client.send(&Message::Stop).unwrap();
+}
+
+#[test]
+fn malformed_datagrams_receive_server_errors() {
+    let client = create_client_and_server(false);
+
+    let reply_path = tempfile::NamedTempFile::new()
+        .expect("Failed to create reply socket path")
+        .into_temp_path()
+        .to_path_buf();
+    let socket = UnixDatagram::bind(&reply_path).expect("Failed to bind reply socket");
+    socket
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("Failed to set reply timeout");
+    socket
+        .send_to(b"not-bitcode", &client.socket_path)
+        .expect("Failed to send malformed datagram");
+
+    let mut buffer = [0_u8; 16_384];
+    let written = socket
+        .recv(&mut buffer)
+        .expect("Failed to read server error");
+    let response =
+        bitcode::deserialize::<Response>(&buffer[..written]).expect("Failed to decode response");
+
+    match response {
+        Response::Ok => panic!("expected server error response"),
+        Response::Error(message) => {
+            assert!(message.contains("can not deserialize message"));
+        }
+    }
+
+    client.client.send(&Message::Stop).unwrap();
+}
+
+#[test]
+fn client_rejects_version_mismatch_before_sending() {
+    let socket = tempfile::NamedTempFile::new()
+        .expect("Failed to create socket path")
+        .into_temp_path()
+        .to_path_buf();
+    let version_path = version_file_path(&socket);
+
+    std::fs::write(&version_path, "999.0.0").expect("Failed to write version file");
+
+    let err = client::new(socket).send(&Message::Stop).unwrap_err();
+
+    assert!(matches!(err, client::Error::ServerVersionMismatch { .. }));
+
+    std::fs::remove_file(version_path).expect("Failed to remove version file");
 }

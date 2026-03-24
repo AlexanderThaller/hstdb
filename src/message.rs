@@ -26,6 +26,15 @@ pub enum Message {
     CommandFinished(CommandFinished),
 }
 
+/// Responses returned by the server after handling a client datagram.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum Response {
+    /// The request was accepted and processed successfully.
+    Ok,
+    /// The request failed and contains a user-facing error message.
+    Error(String),
+}
+
 /// Errors returned while constructing messages from process environment data.
 #[derive(Error, Debug)]
 pub enum Error {
