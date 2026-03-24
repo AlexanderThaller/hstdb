@@ -365,9 +365,8 @@ pub struct Opt {
 }
 
 impl Opt {
-    #[expect(clippy::result_large_err, reason = "we will fix this if we need to")]
     /// Executes the selected `hstdb` command.
-    pub fn run(self) -> Result<(), run::Error> {
+    pub fn run(self) -> color_eyre::Result<()> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;
         let folder = self.default_args.folder;
@@ -396,7 +395,7 @@ impl Opt {
 
         sub_command.map_or_else(
             || {
-                let config = config::Config::open(&config_path).map_err(run::Error::ReadConfig)?;
+                let config = config::Config::open(&config_path)?;
                 let filter = Filter::new(&config)
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
@@ -417,32 +416,31 @@ impl Opt {
                     status,
                 };
 
-                run::default(&filter, &display, data_dir)
+                run::default(&filter, &display, &data_dir)
             },
             |sub_command| match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
-                    let config =
-                        config::Config::open(&config_path).map_err(run::Error::ReadConfig)?;
-                    run::zsh_add_history(&config, o.command, o.socket_path.socket_path)
+                    let config = config::Config::open(&config_path)?;
+                    run::zsh_add_history(&config, o.command, &o.socket_path.socket_path)
                 }
-                SubCommand::Server(o) => {
-                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
-                }
-                SubCommand::Stop(o) => run::stop(o.socket_path),
-                SubCommand::Disable(o) => run::disable(o.socket_path),
-                SubCommand::Enable(o) => run::enable(o.socket_path),
-                SubCommand::PreCmd(o) => run::precmd(o.socket_path),
+                SubCommand::Server(o) => run::server(
+                    &o.cache_path,
+                    &o.socket_path.socket_path,
+                    &o.data_dir.data_dir,
+                ),
+                SubCommand::Stop(o) => run::stop(&o.socket_path),
+                SubCommand::Disable(o) => run::disable(&o.socket_path),
+                SubCommand::Enable(o) => run::enable(&o.socket_path),
+                SubCommand::PreCmd(o) => run::precmd(&o.socket_path),
                 SubCommand::SessionID => {
                     run::session_id();
                     Ok(())
                 }
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
-                    Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir)
-                        .map_err(run::Error::ImportHistdb),
+                    Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir),
                     Import::Histfile(o) => {
                         run::import::histfile(&o.import_file, o.data_dir.data_dir)
-                            .map_err(run::Error::ImportHistfile)
                     }
                 },
                 SubCommand::Init => {
@@ -459,7 +457,10 @@ impl Opt {
                     Ok(())
                 }
                 #[cfg(feature = "generate-readme")]
-                SubCommand::GenerateReadme(o) => run::generate_readme(o.readme_path),
+                SubCommand::GenerateReadme(o) => {
+                    run::generate_readme(o.readme_path)?;
+                    Ok(())
+                }
             },
         )
     }
