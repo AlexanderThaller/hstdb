@@ -101,7 +101,7 @@ Commands:
 
 Options:
   -d, --data-dir <DATA_DIR>
-          Path to folder in which to store the history files [env: HSTDB_DATA_DIR=] [default: /home/athaller/.local/share/hstdb]
+          Path to folder in which to store the history files [env: HSTDB_DATA_DIR=] [default: $XDG_DATA_HOME/hstdb (or $HOME/.local/share/hstdb if XDG_DATA_HOME is not set)]
   -e, --entries-count <ENTRIES_COUNT>
           How many entries to print [default: 25]
   -c, --command <COMMAND>
