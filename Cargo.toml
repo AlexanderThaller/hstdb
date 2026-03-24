@@ -69,6 +69,18 @@ wildcard-enum-match-arm = "warn"
 disallowed-methods = "deny"
 
 [profile.release]
-lto = true
+debug = true
+
+[profile.deploy]
 codegen-units = 1
+debug = false
+incremental = false
+inherits = "release"
+lto = true
+opt-level = 3
 panic = "abort"
+strip = "symbols"
+
+[profile.fastdev]
+inherits = "release"
+debug-assertions = true
