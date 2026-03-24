@@ -79,7 +79,7 @@ shell.
 ## Usage
 
 ```text
-Better history management for zsh. Based on ideas from [https://github.com/larkery/zsh-histdb](https://github.com/larkery/zsh-histdb).
+Better history management for zsh.
 
 Usage: hstdb [OPTIONS] [COMMAND]
 
