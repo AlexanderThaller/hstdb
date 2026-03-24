@@ -60,25 +60,15 @@ fn default_cache_path() -> PathBuf {
 }
 
 fn default_histdb_sqlite_path() -> PathBuf {
-    std::env::var_os("HISTDB_FILE").map_or_else(
-        || {
-            let base_dirs = base_directory();
-            let home = base_dirs.home_dir();
-            home.join(".histdb").join("zsh-history.db")
-        },
-        PathBuf::from,
-    )
+    let base_dirs = base_directory();
+    let home = base_dirs.home_dir();
+    home.join(".histdb").join("zsh-history.db")
 }
 
 fn default_zsh_histfile_path() -> PathBuf {
-    std::env::var_os("HISTFILE").map_or_else(
-        || {
-            let base_dirs = base_directory();
-            let home = base_dirs.home_dir();
-            home.join(".histfile")
-        },
-        PathBuf::from,
-    )
+    let base_dirs = base_directory();
+    let home = base_dirs.home_dir();
+    home.join(".histfile")
 }
 
 fn default_socket_path() -> PathBuf {
@@ -137,7 +127,7 @@ struct ImportHistdb {
     data_dir: DataDir,
 
     /// Path to the existing histdb sqlite file
-    #[clap(short, long, default_value_os_t = default_histdb_sqlite_path())]
+    #[clap(short, long, env = "HISTDB_FILE", default_value_os_t = default_histdb_sqlite_path())]
     import_file: PathBuf,
 }
 
@@ -147,7 +137,7 @@ struct ImportHistfile {
     data_dir: DataDir,
 
     /// Path to the existing zsh histfile file
-    #[clap(short, long, default_value_os_t = default_zsh_histfile_path())]
+    #[clap(short, long, env = "HISTFILE", default_value_os_t = default_zsh_histfile_path())]
     import_file: PathBuf,
 }
 
