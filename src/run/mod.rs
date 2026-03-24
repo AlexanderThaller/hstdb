@@ -141,7 +141,11 @@ impl Display {
 }
 
 #[expect(clippy::result_large_err, reason = "will fix this if needed")]
-pub fn default(filter: &Filter, display: &TableDisplay, data_dir: PathBuf) -> Result<(), Error> {
+pub fn default(
+    filter: &Filter<'_>,
+    display: &TableDisplay,
+    data_dir: PathBuf,
+) -> Result<(), Error> {
     let entries = store::new(data_dir).get_entries(filter)?;
 
     if display.format {
