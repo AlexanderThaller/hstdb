@@ -2,3 +2,7 @@
 **/*.rs.bk
 /.worktrees/
 /result
+/bench.adoc
+/flamegraph.svg
+/perf.data
+/perf.data.old

@@ -47,6 +47,12 @@ pub(crate) struct Filter<'a> {
 
 impl<'a> Filter<'a> {
     #[must_use]
+    /// Returns the configured maximum number of entries to keep.
+    pub(crate) const fn count_limit(&self) -> usize {
+        self.count
+    }
+
+    #[must_use]
     /// Returns the effective hostname restriction, if any.
     pub(crate) const fn get_hostname(&self) -> Option<&String> {
         self.hostname.as_ref()
@@ -126,58 +132,34 @@ impl<'a> Filter<'a> {
     }
 
     #[must_use]
-    /// Applies the filter to a set of entries and returns the matching subset.
-    pub(crate) fn filter_entries(&self, entries: Vec<Entry>) -> Vec<Entry> {
-        let filtered: Vec<Entry> = entries
-            .into_iter()
-            .filter(|entry| {
-                self.command
-                    .as_ref()
-                    .is_none_or(|command| Self::filter_command(&entry.command, command))
+    /// Returns whether `entry` matches the configured filter.
+    pub(crate) fn matches_entry(&self, entry: &Entry) -> bool {
+        self.command
+            .as_ref()
+            .is_none_or(|command| Self::filter_command(&entry.command, command))
+            && self.directory.as_ref().is_none_or(|dir| {
+                if self.no_subdirs {
+                    entry.pwd == *dir
+                } else {
+                    entry.pwd.as_path().starts_with(dir)
+                }
             })
-            .filter(|entry| {
-                self.directory.as_ref().is_none_or(|dir| {
-                    if self.no_subdirs {
-                        entry.pwd == *dir
-                    } else {
-                        entry.pwd.as_path().starts_with(dir)
-                    }
-                })
-            })
-            .filter(|entry| {
-                self.command_text
-                    .as_ref()
-                    .is_none_or(|regex| regex.is_match(&entry.command))
-            })
-            .filter(|entry| {
-                self.command_text_excluded
-                    .as_ref()
-                    .is_none_or(|regex| !regex.is_match(&entry.command))
-            })
-            .filter(|entry| {
-                self.session
-                    .as_ref()
-                    .is_none_or(|regex| regex.is_match(&entry.session_id.to_string()))
-            })
-            .filter(|entry| !self.failed || entry.result == 0)
-            .filter(|entry| {
-                self.find_status
-                    .and_then(|find_status| {
-                        if find_status == entry.result {
-                            None
-                        } else {
-                            Some(())
-                        }
-                    })
-                    .is_none()
-            })
-            .collect();
-
-        if self.count > 0 {
-            filtered.into_iter().rev().take(self.count).rev().collect()
-        } else {
-            filtered
-        }
+            && self
+                .command_text
+                .as_ref()
+                .is_none_or(|regex| regex.is_match(&entry.command))
+            && self
+                .command_text_excluded
+                .as_ref()
+                .is_none_or(|regex| !regex.is_match(&entry.command))
+            && self
+                .session
+                .as_ref()
+                .is_none_or(|regex| regex.is_match(&entry.session_id.to_string()))
+            && (!self.failed || entry.result == 0)
+            && self
+                .find_status
+                .is_none_or(|find_status| find_status == entry.result)
     }
 
     #[must_use]

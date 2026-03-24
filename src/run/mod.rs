@@ -145,8 +145,9 @@ pub(crate) fn default(
     filter: &Filter<'_>,
     display: &TableDisplay,
     data_dir: &Path,
+    cache_path: &Path,
 ) -> color_eyre::Result<()> {
-    let entries = store::new(data_dir.to_path_buf())
+    let entries = store::with_cache_path(data_dir.to_path_buf(), cache_path.to_path_buf())
         .get_entries(filter)
         .wrap_err_with(|| format!("can not load history entries from {}", data_dir.display()))?;
 
@@ -360,24 +361,48 @@ pub(crate) fn zsh_add_history(
 }
 
 /// Starts the local history server.
-pub(crate) fn server(socket: &Path, data_dir: &Path, state_dir: &Path) -> color_eyre::Result<()> {
+pub(crate) fn server(
+    socket: &Path,
+    data_dir: &Path,
+    state_dir: &Path,
+    cache_path: &Path,
+) -> color_eyre::Result<()> {
     server::builder(
         data_dir.to_path_buf(),
         state_dir.to_path_buf(),
+        cache_path.to_path_buf(),
         socket.to_path_buf(),
         true,
     )
     .build()
     .wrap_err_with(|| {
         format!(
-            "can not build hstdb server with data dir {}, state_dir {}, and socket {}",
+            "can not build hstdb server with data dir {}, state_dir {}, cache_path {}, and socket \
+             {}",
             data_dir.display(),
             state_dir.display(),
+            cache_path.display(),
             socket.display()
         )
     })?
     .run()
     .wrap_err_with(|| format!("can not run hstdb server on socket {}", socket.display()))?;
+
+    Ok(())
+}
+
+#[cfg(feature = "sqlite-cache")]
+/// Rebuilds the local cache database from the CSV store.
+pub(crate) fn sync_cache(data_dir: &Path, cache_path: &Path) -> color_eyre::Result<()> {
+    store::with_cache_path(data_dir.to_path_buf(), cache_path.to_path_buf())
+        .sync_cache()
+        .wrap_err_with(|| {
+            format!(
+                "can not sync cache database {} from data dir {}",
+                cache_path.display(),
+                data_dir.display()
+            )
+        })?;
 
     Ok(())
 }

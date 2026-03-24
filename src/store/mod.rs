@@ -1,12 +1,17 @@
 //! CSV-backed persistent history storage for `hstdb`.
 
+#[cfg(feature = "sqlite-cache")]
+mod cache;
 /// Query filtering primitives used when reading history entries.
 pub(crate) mod filter;
 
 use crate::entry::Entry;
 pub(crate) use filter::Filter;
 use std::{
+    cmp::Reverse,
+    collections::BinaryHeap,
     fs,
+    io::BufReader,
     path::{
         Path,
         PathBuf,
@@ -29,6 +34,10 @@ pub(crate) enum Error {
     #[error("can not serialize entry: {0}")]
     SerializeEntry(csv::Error),
 
+    /// Flushing an appended history entry to disk failed.
+    #[error("can not flush log file: {0}: {1}")]
+    FlushLogFile(PathBuf, #[source] std::io::Error),
+
     /// Building the glob used to read host files failed.
     #[error("glob is not valid: {0}")]
     InvalidGlob(glob::PatternError),
@@ -44,18 +53,42 @@ pub(crate) enum Error {
     /// Applying a filter that depends on runtime state failed.
     #[error("{0}")]
     Filter(#[from] filter::Error),
+
+    #[cfg(feature = "sqlite-cache")]
+    /// Updating or querying the local cache database failed.
+    #[error("{0}")]
+    Cache(#[from] cache::Error),
 }
 
 /// CSV-backed history store organized as one file per host.
 #[derive(Debug)]
 pub(crate) struct Store {
     data_dir: PathBuf,
+    #[cfg_attr(
+        not(feature = "sqlite-cache"),
+        expect(dead_code, reason = "used when the sqlite-cache feature is enabled")
+    )]
+    cache_path: Option<PathBuf>,
 }
 
+#[cfg(test)]
 #[must_use]
 /// Creates a store rooted at `data_dir`.
 pub(crate) const fn new(data_dir: PathBuf) -> Store {
-    Store { data_dir }
+    Store {
+        data_dir,
+        cache_path: None,
+    }
+}
+
+#[must_use]
+/// Creates a store rooted at `data_dir` with a local cache database at
+/// `cache_path`.
+pub(crate) const fn with_cache_path(data_dir: PathBuf, cache_path: PathBuf) -> Store {
+    Store {
+        data_dir,
+        cache_path: Some(cache_path),
+    }
 }
 
 impl Store {
@@ -88,6 +121,18 @@ impl Store {
         let mut writer = builder.from_writer(index_file);
 
         writer.serialize(entry).map_err(Error::SerializeEntry)?;
+        writer
+            .flush()
+            .map_err(|err| Error::FlushLogFile(file_path.clone(), err))?;
+
+        #[cfg(feature = "sqlite-cache")]
+        if let Some(cache_path) = &self.cache_path {
+            match cache::append_entry(cache_path, entry) {
+                Ok(()) => {}
+                Err(cache::Error::SchemaVersionMismatch(_)) => self.sync_cache()?,
+                Err(err) => return Err(Error::from(err)),
+            }
+        }
 
         Ok(())
     }
@@ -105,10 +150,30 @@ impl Store {
 
     /// Reads, sorts, and filters entries from the persistent store.
     pub(crate) fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
-        let mut entries: Vec<_> = if let Some(hostname) = filter.get_hostname() {
+        #[cfg(feature = "sqlite-cache")]
+        if let Some(cache_path) = &self.cache_path {
+            if !cache_path.exists() {
+                self.sync_cache()?;
+            }
+
+            if cache_path.exists() {
+                match cache::get_entries(cache_path, filter) {
+                    Ok(entries) => return Ok(entries),
+                    Err(cache::Error::SchemaVersionMismatch(_)) => {
+                        self.sync_cache()?;
+                        return cache::get_entries(cache_path, filter).map_err(Error::from);
+                    }
+                    Err(err) => return Err(Error::from(err)),
+                }
+            }
+        }
+
+        let mut collector = EntryCollector::new(filter.count_limit());
+
+        if let Some(hostname) = filter.get_hostname() {
             let index_path = self.data_dir.join(format!("{hostname}.csv"));
 
-            Self::read_log_file(index_path)?
+            Self::read_log_file(index_path, filter, &mut collector)?;
         } else {
             let glob_string = self.data_dir.join("*.csv");
 
@@ -118,43 +183,179 @@ impl Store {
                 .collect::<Result<Vec<PathBuf>, glob::GlobError>>()
                 .map_err(Error::GlobIteration)?;
 
-            index_paths
-                .into_iter()
-                .map(Self::read_log_file)
-                .collect::<Result<Vec<Vec<_>>, Error>>()?
-                .into_iter()
-                .flatten()
-                .collect()
-        };
+            for index_path in index_paths {
+                Self::read_log_file(index_path, filter, &mut collector)?;
+            }
+        }
 
-        entries.sort();
-
-        let entries = filter.filter_entries(entries);
-
-        Ok(entries)
+        Ok(collector.finish())
     }
 
-    fn read_log_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<Entry>, Error> {
+    #[cfg(feature = "sqlite-cache")]
+    /// Rebuilds the local cache database from the CSV store.
+    pub(crate) fn sync_cache(&self) -> Result<(), Error> {
+        if let Some(cache_path) = &self.cache_path {
+            cache::sync_from_csv(&self.data_dir, cache_path)?;
+        }
+
+        Ok(())
+    }
+
+    fn read_log_file<P: AsRef<Path>>(
+        file_path: P,
+        filter: &Filter<'_>,
+        collector: &mut EntryCollector,
+    ) -> Result<(), Error> {
         let file = std::fs::File::open(&file_path)
             .map_err(|err| Error::OpenLogFile(file_path.as_ref().to_path_buf(), err))?;
 
-        let reader = std::io::BufReader::new(file);
+        let reader = BufReader::with_capacity(256 * 1024, file);
 
-        Self::read_metadata(reader)
+        Self::read_metadata(reader, filter, collector)
             .map_err(|err| Error::ReadLogFile(file_path.as_ref().to_path_buf(), err))
     }
 
-    fn read_metadata<R: std::io::Read>(reader: R) -> Result<Vec<Entry>, csv::Error> {
-        let mut csv_reader = csv::ReaderBuilder::new().from_reader(reader);
+    fn read_metadata<R: std::io::Read>(
+        reader: R,
+        filter: &Filter<'_>,
+        collector: &mut EntryCollector,
+    ) -> Result<(), csv::Error> {
+        let mut csv_reader = csv::ReaderBuilder::new()
+            .buffer_capacity(256 * 1024)
+            .from_reader(reader);
 
-        csv_reader
-            .deserialize()
-            .collect::<Result<Vec<Entry>, csv::Error>>()
+        for entry in csv_reader.deserialize() {
+            let entry = entry?;
+
+            if filter.matches_entry(&entry) {
+                collector.push(entry);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+enum EntryCollector {
+    All(Vec<Entry>),
+    Top {
+        count: usize,
+        entries: BinaryHeap<Reverse<Entry>>,
+    },
+}
+
+impl EntryCollector {
+    fn new(count: usize) -> Self {
+        if count == 0 {
+            Self::All(Vec::new())
+        } else {
+            Self::Top {
+                count,
+                entries: BinaryHeap::with_capacity(count),
+            }
+        }
+    }
+
+    fn push(&mut self, entry: Entry) {
+        match self {
+            Self::All(entries) => entries.push(entry),
+            Self::Top { count, entries } => {
+                if entries.len() < *count {
+                    entries.push(Reverse(entry));
+                    return;
+                }
+
+                if entries.peek().is_some_and(|smallest| entry > smallest.0) {
+                    entries.pop();
+                    entries.push(Reverse(entry));
+                }
+            }
+        }
+    }
+
+    fn finish(self) -> Vec<Entry> {
+        let mut entries = match self {
+            Self::All(entries) => entries,
+            Self::Top { entries, .. } => entries.into_iter().map(|entry| entry.0).collect(),
+        };
+
+        entries.sort();
+        entries
     }
 }
 
 #[cfg(test)]
 mod test {
+    use super::EntryCollector;
+    use crate::{
+        config::Config,
+        entry::Entry,
+        store::Filter,
+    };
+    use chrono::{
+        TimeZone,
+        Utc,
+    };
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    fn entry(second: i64, command: &str) -> Entry {
+        Entry {
+            time_finished: Utc.timestamp_opt(second, 0).unwrap(),
+            time_start: Utc.timestamp_opt(second - 1, 0).unwrap(),
+            hostname: "host".to_string(),
+            command: command.to_string(),
+            pwd: PathBuf::from("/tmp"),
+            result: 0,
+            session_id: Uuid::nil(),
+            user: "user".to_string(),
+        }
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    fn tied_entry(time_finished: i64, time_start: i64, command: &str, session_id: Uuid) -> Entry {
+        Entry {
+            time_finished: Utc.timestamp_opt(time_finished, 0).unwrap(),
+            time_start: Utc.timestamp_opt(time_start, 0).unwrap(),
+            hostname: "host".to_string(),
+            command: command.to_string(),
+            pwd: PathBuf::from("/tmp"),
+            result: 0,
+            session_id,
+            user: "user".to_string(),
+        }
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    fn write_outdated_cache_schema(cache_path: &std::path::Path) {
+        let conn = rusqlite::Connection::open(cache_path).unwrap();
+
+        conn.execute_batch(
+            "CREATE TABLE metadata (
+                 key TEXT PRIMARY KEY,
+                 value TEXT NOT NULL
+             );
+             CREATE TABLE entries (
+                 hostname TEXT NOT NULL,
+                 time_finished INTEGER NOT NULL,
+                 time_start INTEGER NOT NULL,
+                 command TEXT NOT NULL,
+                 pwd BLOB NOT NULL,
+                 result INTEGER NOT NULL,
+                 session_id BLOB NOT NULL,
+                 user TEXT NOT NULL
+             );",
+        )
+        .unwrap();
+
+        conn.execute(
+            "INSERT INTO metadata (key, value) VALUES ('schema_version', '1')",
+            [],
+        )
+        .unwrap();
+    }
+
     #[test]
     fn dot_filename_with_extension() {
         let folder_path = std::path::PathBuf::from("/tmp");
@@ -166,5 +367,117 @@ mod test {
 
         assert_ne!(bad, expected);
         assert_eq!(good, expected);
+    }
+
+    #[test]
+    fn entry_collector_keeps_highest_entries() {
+        let mut collector = EntryCollector::new(2);
+
+        collector.push(entry(3, "third"));
+        collector.push(entry(1, "first"));
+        collector.push(entry(4, "fourth"));
+        collector.push(entry(2, "second"));
+
+        let entries = collector.finish();
+
+        assert_eq!(entries, vec![entry(3, "third"), entry(4, "fourth")]);
+    }
+
+    #[test]
+    fn get_entries_applies_filter_before_count_limit() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let store = crate::store::new(data_dir.path().to_path_buf());
+
+        store.add_entry(&entry(1, "keep-one")).unwrap();
+        store.add_entry(&entry(2, "drop-two")).unwrap();
+        store.add_entry(&entry(3, "keep-three")).unwrap();
+        store.add_entry(&entry(4, "keep-four")).unwrap();
+
+        let config = Config::default();
+        let filter = Filter::new(&config)
+            .command(None, Some(regex::Regex::new("^keep").unwrap()), None)
+            .count(2);
+
+        let entries = store.get_entries(&filter).unwrap();
+
+        assert_eq!(entries, vec![entry(3, "keep-three"), entry(4, "keep-four")]);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn sync_cache_rebuilds_database_from_csv() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let store = crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path);
+
+        store.add_entry(&entry(1, "first")).unwrap();
+        store.add_entry(&entry(2, "second")).unwrap();
+        store.sync_cache().unwrap();
+
+        let entries = store.get_entries(&Filter::default()).unwrap();
+
+        assert_eq!(entries, vec![entry(1, "first"), entry(2, "second")]);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn cache_order_matches_csv_order_when_time_finished_ties() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let csv_store = crate::store::new(data_dir.path().to_path_buf());
+        let cache_store = crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path);
+
+        let later_start = tied_entry(10, 9, "aaa", Uuid::from_u128(1));
+        let later_command = tied_entry(10, 8, "zzz", Uuid::from_u128(2));
+        let earlier = tied_entry(9, 8, "bbb", Uuid::from_u128(3));
+
+        csv_store.add_entry(&later_command).unwrap();
+        csv_store.add_entry(&earlier).unwrap();
+        csv_store.add_entry(&later_start).unwrap();
+
+        cache_store.sync_cache().unwrap();
+
+        let filter = Filter::default();
+        let csv_entries = csv_store.get_entries(&filter).unwrap();
+        let cache_entries = cache_store.get_entries(&filter).unwrap();
+
+        assert_eq!(cache_entries, csv_entries);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn get_entries_rebuilds_cache_on_schema_version_mismatch() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let csv_store = crate::store::new(data_dir.path().to_path_buf());
+        let cache_store =
+            crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path.clone());
+
+        csv_store.add_entry(&entry(1, "first")).unwrap();
+        write_outdated_cache_schema(&cache_path);
+
+        let entries = cache_store.get_entries(&Filter::default()).unwrap();
+
+        assert_eq!(entries, vec![entry(1, "first")]);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn add_entry_rebuilds_cache_on_schema_version_mismatch() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let cache_store =
+            crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path.clone());
+
+        write_outdated_cache_schema(&cache_path);
+        cache_store.add_entry(&entry(1, "first")).unwrap();
+
+        let entries = cache_store.get_entries(&Filter::default()).unwrap();
+
+        assert_eq!(entries, vec![entry(1, "first")]);
     }
 }

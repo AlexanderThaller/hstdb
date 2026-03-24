@@ -73,9 +73,10 @@ fn create_client_and_server(keep_datadir: bool) -> TestClient {
 
         let data_dir = data_dir.clone();
         let state_dir = state_dir.clone();
+        let cache_path = state_dir.join("history.sqlite3");
         let socket = socket.clone();
 
-        let server = server::builder(data_dir, state_dir, socket, false)
+        let server = server::builder(data_dir, state_dir, cache_path, socket, false)
             .build()
             .expect("Failed to build server");
 
