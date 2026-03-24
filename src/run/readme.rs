@@ -154,7 +154,7 @@ fn replace_section(
 fn render_help(command_path: &'static [&'static str]) -> Result<String, Error> {
     let mut command = Opt::command();
     let command = find_subcommand(&mut command, command_path)?;
-    command.bin_name(help_command_path(command_path));
+    *command = command.clone().bin_name(help_command_path(command_path));
 
     let mut help = Vec::new();
     command
