@@ -1,3 +1,8 @@
+#![allow(
+    missing_docs,
+    reason = "integration tests are not part of the public API"
+)]
+
 use pretty_assertions::assert_eq;
 use std::{
     path::PathBuf,
@@ -41,20 +46,25 @@ impl Drop for TestClient {
     fn drop(&mut self) {
         self.barrier_stop.wait();
 
-        std::fs::remove_dir_all(&self.cache_dir).unwrap();
+        std::fs::remove_dir_all(&self.cache_dir).expect("Failed to remove cache dir");
 
         if !self.keep_datadir {
-            std::fs::remove_dir_all(&self.data_dir).unwrap();
+            std::fs::remove_dir_all(&self.data_dir).expect("Failed to remove data dir");
         }
     }
 }
 
 fn create_client_and_server(keep_datadir: bool) -> TestClient {
-    let cache_dir = tempfile::tempdir().unwrap().keep();
-    let data_dir = tempfile::tempdir().unwrap().keep();
+    let cache_dir = tempfile::tempdir()
+        .expect("Failed to create cache dir")
+        .keep();
+
+    let data_dir = tempfile::tempdir()
+        .expect("Failed to create data dir")
+        .keep();
 
     let socket = tempfile::NamedTempFile::new()
-        .unwrap()
+        .expect("Failed to create socket file")
         .into_temp_path()
         .to_path_buf();
 
@@ -71,11 +81,11 @@ fn create_client_and_server(keep_datadir: bool) -> TestClient {
 
         let server = server::builder(cache_dir, data_dir, socket, false)
             .build()
-            .unwrap();
+            .expect("Failed to build server");
 
         thread::spawn(move || {
             barrier_start.wait();
-            server.run().unwrap();
+            server.run().expect("Server run failed");
             barrier_stop.wait();
         });
     }
@@ -167,7 +177,7 @@ fn write_entry_whitespace() {
     let session_id = Uuid::new_v4();
 
     let start_data = CommandStart {
-        command: r#"Test\nTest\nTest      "#.to_string(),
+        command: "Test\nTest\nTest      ".to_string(),
         pwd: PathBuf::from("/tmp"),
         session_id,
         time_stamp: Utc::now(),
@@ -211,7 +221,7 @@ fn write_entry_whitespace() {
         time_finished: finish_data.time_stamp,
         time_start: start_data.time_stamp,
         hostname: start_data.hostname,
-        command: r#"Test\nTest\nTest"#.to_string(),
+        command: "Test\nTest\nTest".to_string(),
         pwd: start_data.pwd,
         result: finish_data.result,
         session_id: start_data.session_id,
@@ -277,7 +287,7 @@ fn write_empty_command() {
     let session_id = Uuid::new_v4();
 
     let start_data = CommandStart {
-        command: "".to_string(),
+        command: String::new(),
         pwd: PathBuf::from("/tmp"),
         session_id,
         time_stamp: Utc::now(),
@@ -328,7 +338,7 @@ fn write_newline_command() {
         "\r\n".to_string(),
         "\n\n".to_string(),
         "\n\n\n".to_string(),
-        r#"\n"#.to_string(),
+        "\n".to_string(),
         '\n'.to_string(),
         '\r'.to_string(),
     ];

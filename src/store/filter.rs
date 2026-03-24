@@ -6,36 +6,54 @@ use regex::Regex;
 use std::path::PathBuf;
 use thiserror::Error;
 
+/// Errors returned while building filters from local runtime state.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Resolving the current hostname failed.
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
 
+    /// Resolving the current working directory failed.
     #[error("can not get current directory: {0}")]
     GetCurrentDir(std::io::Error),
 }
 
+/// Filter configuration applied when querying stored history entries.
 #[derive(Debug, Default)]
 pub struct Filter<'a> {
+    /// Optional hostname to restrict the query to.
     pub hostname: Option<String>,
+    /// Optional working directory prefix to restrict the query to.
     pub directory: Option<PathBuf>,
+    /// Optional command name matched against pipeline segments.
     pub command: Option<String>,
+    /// Whether directory filtering should exclude subdirectories.
     pub no_subdirs: bool,
+    /// Optional regex that must match the full command text.
     pub command_text: Option<Regex>,
+    /// Optional regex that must not match the full command text.
     pub command_text_excluded: Option<Regex>,
+    /// Maximum number of entries to return, counting from the end.
     pub count: usize,
+    /// Optional regex matched against the session identifier.
     pub session: Option<Regex>,
+    /// Whether failed commands should be filtered out.
     pub failed: bool,
+    /// Optional exit status that entries must match.
     pub find_status: Option<u16>,
 
     config_hostname: Option<&'a str>,
 }
 
 impl<'a> Filter<'a> {
+    #[must_use]
+    /// Returns the effective hostname restriction, if any.
     pub const fn get_hostname(&self) -> Option<&String> {
         self.hostname.as_ref()
     }
 
+    #[must_use]
+    /// Creates a new filter using defaults derived from `config`.
     pub fn new(config: &'a Config) -> Self {
         Self {
             config_hostname: config.hostname.as_deref(),
@@ -43,6 +61,8 @@ impl<'a> Filter<'a> {
         }
     }
 
+    /// Sets the hostname filter, optionally resolving the current hostname when
+    /// `all_hosts` is false and no explicit hostname was provided.
     pub fn hostname(self, hostname: Option<String>, all_hosts: bool) -> Result<Self, Error> {
         let current_hostname = if let Some(config_hostname) = self.config_hostname {
             config_hostname.to_string()
@@ -62,6 +82,8 @@ impl<'a> Filter<'a> {
         Ok(Self { hostname, ..self })
     }
 
+    /// Sets the directory filter, optionally resolving the current directory
+    /// when `in_current` is true.
     pub fn directory(
         self,
         folder: Option<PathBuf>,
@@ -81,10 +103,14 @@ impl<'a> Filter<'a> {
         })
     }
 
+    #[must_use]
+    /// Limits the number of entries returned by the filter.
     pub fn count(self, count: usize) -> Self {
         Self { count, ..self }
     }
 
+    #[must_use]
+    /// Configures command-name and command-text filters.
     pub fn command(
         self,
         command: Option<String>,
@@ -99,6 +125,8 @@ impl<'a> Filter<'a> {
         }
     }
 
+    #[must_use]
+    /// Applies the filter to a set of entries and returns the matching subset.
     pub fn filter_entries(&self, entries: Vec<Entry>) -> Vec<Entry> {
         let filtered: Vec<Entry> = entries
             .into_iter()
@@ -152,10 +180,15 @@ impl<'a> Filter<'a> {
         }
     }
 
+    #[must_use]
+    /// Restricts matches to session ids matching `session`.
     pub fn session(self, session: Option<Regex>) -> Self {
         Self { session, ..self }
     }
 
+    #[must_use]
+    /// Enables filtering out non-zero exit statuses when `filter_failed` is
+    /// true.
     pub fn filter_failed(self, filter_failed: bool) -> Self {
         Self {
             failed: filter_failed,
@@ -169,6 +202,8 @@ impl<'a> Filter<'a> {
             .any(|pipe_command| pipe_command.split_whitespace().next() == Some(command))
     }
 
+    #[must_use]
+    /// Restricts matches to entries with the given exit status.
     pub fn find_status(self, find_status: Option<u16>) -> Self {
         Self {
             find_status,

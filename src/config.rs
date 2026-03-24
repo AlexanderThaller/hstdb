@@ -7,15 +7,19 @@ use thiserror::Error;
 
 use serde::Deserialize;
 
+/// Errors returned while loading a configuration file.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Reading the configuration file from disk failed.
     #[error("can not read config file: {0}")]
     ReadFile(std::io::Error),
 
+    /// Parsing the TOML configuration file failed.
     #[error("can not parse config file: {0}")]
     ParseConfig(toml::de::Error),
 }
 
+/// User-configurable runtime settings for `hstdb`.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -41,6 +45,8 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Loads a config from `path`, returning defaults when the file does not
+    /// exist.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
         if !path.as_ref().is_file() {
             debug!("no config file found using default");

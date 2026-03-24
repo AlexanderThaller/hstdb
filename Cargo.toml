@@ -49,7 +49,38 @@ uuid = { version = "1", features = ["serde", "v4"] }
 tempfile = "3"
 pretty_assertions = "1"
 
+[lints.rust]
+missing-docs = "warn"
+missing-debug-implementations = "warn"
+rust-2018-idioms = "warn"
+unsafe-code = "forbid"
+unused-lifetimes = "warn"
+
+[lints.clippy]
+allow-attributes = "warn"
+allow-attributes-without-reason = "warn"
+dbg-macro = "warn"
+pedantic = { level = "warn", priority = -1 }
+todo = "warn"
+unwrap-used = "warn"
+missing-panics-doc = "allow"
+missing-errors-doc = "allow"
+wildcard-enum-match-arm = "warn"
+disallowed-methods = "deny"
+
 [profile.release]
-lto = true
+debug = true
+
+[profile.deploy]
 codegen-units = 1
+debug = false
+incremental = false
+inherits = "release"
+lto = true
+opt-level = 3
 panic = "abort"
+strip = "symbols"
+
+[profile.fastdev]
+inherits = "release"
+debug-assertions = true

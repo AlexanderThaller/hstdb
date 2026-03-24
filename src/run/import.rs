@@ -1,3 +1,5 @@
+//! Import routines for existing shell history sources.
+
 use crate::{
     client,
     message,
@@ -25,81 +27,107 @@ use std::{
 use thiserror::Error;
 use uuid::Uuid;
 
+/// Errors returned while importing history from external formats.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Sending imported entries through the client failed.
     #[error("{0}")]
     Client(#[from] client::Error),
 
+    /// Building message data from the environment failed.
     #[error("{0}")]
     Message(#[from] message::Error),
 
+    /// Running the target server failed.
     #[error("{0}")]
     Server(#[from] server::Error),
 
+    /// Writing imported entries into the persistent store failed.
     #[error("{0}")]
     Store(#[from] store::Error),
 
+    /// Resolving the local hostname failed.
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
 
     #[cfg(feature = "histdb-import")]
+    /// Opening the source `SQLite` database failed.
     #[error("can not open sqlite database: {0}")]
     OpenSqliteDatabase(rusqlite::Error),
 
     #[cfg(feature = "histdb-import")]
+    /// Preparing the `SQLite` query used to read history rows failed.
     #[error("can not prepare sqlite query to get entries: {0}")]
     PrepareSqliteQuery(rusqlite::Error),
 
     #[cfg(feature = "histdb-import")]
+    /// Converting a `SQLite` row into an intermediate entry failed.
     #[error("can not convert sqlite row: {0}")]
     ConvertSqliteRow(rusqlite::Error),
 
     #[cfg(feature = "histdb-import")]
+    /// Collecting the queried `SQLite` rows failed.
     #[error("can not collect entries from sqlite query: {0}")]
     CollectEntries(rusqlite::Error),
 
     #[cfg(feature = "histdb-import")]
+    /// Converting an imported exit status into `u16` failed.
     #[error("can not convert exit status from sqlite: {0}")]
     ConvertExitStatus(std::num::TryFromIntError),
 
+    /// Opening the source zsh history file failed.
     #[error("can not open histfile: {0}")]
     OpenHistfile(std::io::Error),
 
-    #[error("accumulator fortime finished is none")]
+    /// A multiline histfile entry was missing its finish timestamp.
+    #[error(
+        "multiline histfile entry missing finish timestamp (time-finished accumulator was none)"
+    )]
     TimeFinishedAccumulatorNone,
 
-    #[error("accumulator for result is none")]
+    /// A multiline histfile entry was missing its exit status.
+    #[error("multiline histfile entry missing exit status (result accumulator was none)")]
     ResultAccumulatorNone,
 
-    #[error("accumulator for command is none")]
+    /// A multiline histfile entry was missing its command text.
+    #[error("multiline histfile entry missing command text (command accumulator was none)")]
     CommandAccumulatorNone,
 
+    /// A histfile line was missing its timestamp prefix.
     #[error("did not find timestamp in histfile line {0}")]
     NoTimestamp(usize),
 
+    /// A histfile line was missing its recorded exit status.
     #[error("did not find result code in histfile line {0}")]
     NoCode(usize),
 
+    /// Parsing a histfile timestamp failed.
     #[error("can not parse timestamp as number from histfile line {1}: {0}")]
     ParseTimestamp(std::num::ParseIntError, usize),
 
+    /// Parsing a histfile exit status failed.
     #[error("can not parse returncode from histfile line {1}: {0}")]
     ParseResultCode(std::num::ParseIntError, usize),
 
+    /// No suitable base directory could be resolved on the current platform.
     #[error("can not get base directories")]
     BaseDirectory,
 
+    /// Reading the current user from the environment failed.
     #[error("can not get current user: {0}")]
     GetUser(std::env::VarError),
 
+    /// An imported entry had an invalid start timestamp.
     #[error("time start is missing")]
     TimeStartMissing,
 
+    /// An imported entry had an invalid finish timestamp.
     #[error("time finished is missing")]
     TimeFinishedMissing,
 }
 
 #[cfg(feature = "histdb-import")]
+/// Imports entries from the original `zsh-histdb` `SQLite` database.
 pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
@@ -201,6 +229,7 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Er
     clippy::too_many_lines,
     reason = "this function is too long and we should split it up"
 )]
+/// Imports entries from a zsh `HISTFILE`.
 pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> Result<(), Error> {
     #[derive(Debug)]
     struct HistfileEntry {
