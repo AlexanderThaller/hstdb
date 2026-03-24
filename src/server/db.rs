@@ -25,7 +25,7 @@ use crate::message::CommandStart;
 
 /// Errors returned by the transient server database.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// No in-flight entry exists for the requested session.
     #[error("entry does not exist in db")]
     EntryNotExist,
@@ -34,7 +34,7 @@ pub enum Error {
 /// Small database used for in-flight commands and disabled
 /// sessions.
 #[derive(Debug, Clone)]
-pub struct Db {
+pub(crate) struct Db {
     entries: Arc<RwLock<BTreeMap<Uuid, CommandStart>>>,
     disabled_sessions: Arc<RwLock<BTreeSet<Uuid>>>,
 
@@ -43,7 +43,7 @@ pub struct Db {
 }
 
 /// Opens the transient databases used by the server under `path`.
-pub fn new(path: impl AsRef<Path>) -> color_eyre::Result<Db> {
+pub(crate) fn new(path: impl AsRef<Path>) -> color_eyre::Result<Db> {
     let entries_path = path.as_ref().join("entries.bitcode");
     let disabled_sessions_path = path.as_ref().join("disabled_sessions.bitcode");
 
@@ -89,7 +89,7 @@ pub fn new(path: impl AsRef<Path>) -> color_eyre::Result<Db> {
 impl Db {
     /// Returns whether an in-flight command exists for `uuid`.
     #[must_use]
-    pub fn contains_entry(&self, uuid: &Uuid) -> bool {
+    pub(crate) fn contains_entry(&self, uuid: &Uuid) -> bool {
         self.entries
             .read()
             .expect("Failed to get read lock for entries")
@@ -98,7 +98,7 @@ impl Db {
 
     /// Returns whether history recording is disabled for `uuid`.
     #[must_use]
-    pub fn is_session_disabled(&self, uuid: &Uuid) -> bool {
+    pub(crate) fn is_session_disabled(&self, uuid: &Uuid) -> bool {
         self.disabled_sessions
             .read()
             .expect("Failed to get read lock for disabled_sessions")
@@ -106,7 +106,7 @@ impl Db {
     }
 
     /// Stores an in-flight command for the session contained in `entry`.
-    pub fn add_entry(&self, entry: &CommandStart) {
+    pub(crate) fn add_entry(&self, entry: &CommandStart) {
         let key = entry.session_id;
         let value = entry.clone();
 
@@ -117,7 +117,7 @@ impl Db {
     }
 
     /// Removes and returns the in-flight command for `uuid`.
-    pub fn remove_entry(&self, uuid: &Uuid) -> color_eyre::Result<CommandStart> {
+    pub(crate) fn remove_entry(&self, uuid: &Uuid) -> color_eyre::Result<CommandStart> {
         let entry = self
             .entries
             .write()
@@ -129,7 +129,7 @@ impl Db {
     }
 
     /// Marks a session as disabled and removes any in-flight command for it.
-    pub fn disable_session(&self, uuid: &Uuid) {
+    pub(crate) fn disable_session(&self, uuid: &Uuid) {
         {
             // Remove any in-flight command for this session, if present.
             let mut entries = self
@@ -158,7 +158,7 @@ impl Db {
     }
 
     /// Re-enables history recording for `uuid`.
-    pub fn enable_session(&self, uuid: &Uuid) {
+    pub(crate) fn enable_session(&self, uuid: &Uuid) {
         self.disabled_sessions
             .write()
             .expect("Failed to get write lock for disabled_sessions")
@@ -166,7 +166,7 @@ impl Db {
     }
 
     /// Persists the database to disk.
-    pub fn persist(&self) -> color_eyre::Result<()> {
+    pub(crate) fn persist(&self) -> color_eyre::Result<()> {
         self.persist_entries()
             .wrap_err("Failed to persist entries")?;
 

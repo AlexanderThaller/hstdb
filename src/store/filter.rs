@@ -8,7 +8,7 @@ use thiserror::Error;
 
 /// Errors returned while building filters from local runtime state.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// Resolving the current hostname failed.
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
@@ -20,27 +20,27 @@ pub enum Error {
 
 /// Filter configuration applied when querying stored history entries.
 #[derive(Debug, Default)]
-pub struct Filter<'a> {
+pub(crate) struct Filter<'a> {
     /// Optional hostname to restrict the query to.
-    pub hostname: Option<String>,
+    pub(crate) hostname: Option<String>,
     /// Optional working directory prefix to restrict the query to.
-    pub directory: Option<PathBuf>,
+    pub(crate) directory: Option<PathBuf>,
     /// Optional command name matched against pipeline segments.
-    pub command: Option<String>,
+    pub(crate) command: Option<String>,
     /// Whether directory filtering should exclude subdirectories.
-    pub no_subdirs: bool,
+    pub(crate) no_subdirs: bool,
     /// Optional regex that must match the full command text.
-    pub command_text: Option<Regex>,
+    pub(crate) command_text: Option<Regex>,
     /// Optional regex that must not match the full command text.
-    pub command_text_excluded: Option<Regex>,
+    pub(crate) command_text_excluded: Option<Regex>,
     /// Maximum number of entries to return, counting from the end.
-    pub count: usize,
+    pub(crate) count: usize,
     /// Optional regex matched against the session identifier.
-    pub session: Option<Regex>,
+    pub(crate) session: Option<Regex>,
     /// Whether failed commands should be filtered out.
-    pub failed: bool,
+    pub(crate) failed: bool,
     /// Optional exit status that entries must match.
-    pub find_status: Option<u16>,
+    pub(crate) find_status: Option<u16>,
 
     config_hostname: Option<&'a str>,
 }
@@ -54,13 +54,13 @@ impl<'a> Filter<'a> {
 
     #[must_use]
     /// Returns the effective hostname restriction, if any.
-    pub const fn get_hostname(&self) -> Option<&String> {
+    pub(crate) const fn get_hostname(&self) -> Option<&String> {
         self.hostname.as_ref()
     }
 
     #[must_use]
     /// Creates a new filter using defaults derived from `config`.
-    pub fn new(config: &'a Config) -> Self {
+    pub(crate) fn new(config: &'a Config) -> Self {
         Self {
             config_hostname: config.hostname.as_deref(),
             ..Default::default()
@@ -69,7 +69,7 @@ impl<'a> Filter<'a> {
 
     /// Sets the hostname filter, optionally resolving the current hostname when
     /// `all_hosts` is false and no explicit hostname was provided.
-    pub fn hostname(self, hostname: Option<String>, all_hosts: bool) -> Result<Self, Error> {
+    pub(crate) fn hostname(self, hostname: Option<String>, all_hosts: bool) -> Result<Self, Error> {
         let current_hostname = if let Some(config_hostname) = self.config_hostname {
             config_hostname.to_string()
         } else {
@@ -90,7 +90,7 @@ impl<'a> Filter<'a> {
 
     /// Sets the directory filter, optionally resolving the current directory
     /// when `in_current` is true.
-    pub fn directory(
+    pub(crate) fn directory(
         self,
         folder: Option<PathBuf>,
         in_current: bool,
@@ -111,13 +111,13 @@ impl<'a> Filter<'a> {
 
     #[must_use]
     /// Limits the number of entries returned by the filter.
-    pub fn count(self, count: usize) -> Self {
+    pub(crate) fn count(self, count: usize) -> Self {
         Self { count, ..self }
     }
 
     #[must_use]
     /// Configures command-name and command-text filters.
-    pub fn command(
+    pub(crate) fn command(
         self,
         command: Option<String>,
         command_text: Option<Regex>,
@@ -164,14 +164,14 @@ impl<'a> Filter<'a> {
 
     #[must_use]
     /// Restricts matches to session ids matching `session`.
-    pub fn session(self, session: Option<Regex>) -> Self {
+    pub(crate) fn session(self, session: Option<Regex>) -> Self {
         Self { session, ..self }
     }
 
     #[must_use]
     /// Enables filtering out non-zero exit statuses when `filter_failed` is
     /// true.
-    pub fn filter_failed(self, filter_failed: bool) -> Self {
+    pub(crate) fn filter_failed(self, filter_failed: bool) -> Self {
         Self {
             failed: filter_failed,
             ..self
@@ -186,7 +186,7 @@ impl<'a> Filter<'a> {
 
     #[must_use]
     /// Restricts matches to entries with the given exit status.
-    pub fn find_status(self, find_status: Option<u16>) -> Self {
+    pub(crate) fn find_status(self, find_status: Option<u16>) -> Self {
         Self {
             find_status,
             ..self

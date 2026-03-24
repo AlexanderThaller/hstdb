@@ -13,7 +13,7 @@ use crate::config::Config;
 
 /// Messages exchanged between the client-side shell hooks and the server.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum Message {
+pub(crate) enum Message {
     /// Requests a graceful server shutdown.
     Stop,
     /// Disables history recording for the given session.
@@ -28,7 +28,7 @@ pub enum Message {
 
 /// Errors returned while constructing messages from process environment data.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// Resolving the local hostname failed.
     #[error("can not get hostname: {0}")]
     GetHostname(std::io::Error),
@@ -65,25 +65,25 @@ pub enum Error {
 
 /// Message payload emitted when a command starts executing.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CommandStart {
+pub(crate) struct CommandStart {
     /// Command line as reported by the shell hook.
-    pub command: String,
+    pub(crate) command: String,
     /// Current working directory at command start.
-    pub pwd: PathBuf,
+    pub(crate) pwd: PathBuf,
     /// Session identifier used to pair start and finish notifications.
-    pub session_id: Uuid,
+    pub(crate) session_id: Uuid,
     /// Time at which the command started.
-    pub time_stamp: DateTime<Utc>,
+    pub(crate) time_stamp: DateTime<Utc>,
     /// User that started the command.
-    pub user: String,
+    pub(crate) user: String,
     /// Hostname recorded for the command.
-    pub hostname: String,
+    pub(crate) hostname: String,
 }
 
 impl CommandStart {
     /// Builds a start message from the current process environment and
     /// configuration.
-    pub fn from_env(config: &Config, command: String) -> Result<Self, Error> {
+    pub(crate) fn from_env(config: &Config, command: String) -> Result<Self, Error> {
         let pwd = env::current_dir().map_err(Error::GetCurrentDir)?;
 
         let time_stamp = Utc::now();
@@ -114,18 +114,18 @@ impl CommandStart {
 
 /// Message payload emitted when a command finishes executing.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CommandFinished {
+pub(crate) struct CommandFinished {
     /// Session identifier of the command that finished.
-    pub session_id: Uuid,
+    pub(crate) session_id: Uuid,
     /// Time at which the command finished.
-    pub time_stamp: DateTime<Utc>,
+    pub(crate) time_stamp: DateTime<Utc>,
     /// Shell exit status of the finished command.
-    pub result: u16,
+    pub(crate) result: u16,
 }
 
 impl CommandFinished {
     /// Builds a finish message from the current process environment.
-    pub fn from_env() -> Result<Self, Error> {
+    pub(crate) fn from_env() -> Result<Self, Error> {
         let time_stamp = Utc::now();
 
         let session_id = session_id_from_env()?;
@@ -144,7 +144,7 @@ impl CommandFinished {
 }
 
 /// Reads and parses `HISTDB_RS_SESSION_ID` from the current environment.
-pub fn session_id_from_env() -> Result<Uuid, Error> {
+pub(crate) fn session_id_from_env() -> Result<Uuid, Error> {
     match env::var("HISTDB_RS_SESSION_ID") {
         Err(err) => match err {
             env::VarError::NotPresent => Err(Error::MissingSessionID),

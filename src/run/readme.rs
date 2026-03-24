@@ -24,7 +24,7 @@ struct ReadmeTemplate {
 }
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     #[error("can not write README file {path}: {source}")]
     WriteReadme {
         path: PathBuf,
@@ -39,7 +39,7 @@ pub enum Error {
     RenderTemplate(#[from] askama::Error),
 }
 
-pub fn generate(readme_path: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn generate(readme_path: PathBuf) -> color_eyre::Result<()> {
     let rendered = render_readme().wrap_err("rendering README content")?;
 
     fs::write(&readme_path, rendered).map_err(|source| Error::WriteReadme {

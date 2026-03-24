@@ -25,7 +25,7 @@ use crate::{
 
 /// Errors returned while resolving platform-specific default directories.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// No suitable base directory could be resolved on the current platform.
     #[error("can not get base directories")]
     BaseDirectory,
@@ -368,7 +368,7 @@ enum SubCommand {
 
 #[derive(Parser, Debug)]
 /// Options for generating shell completion scripts.
-pub struct CompletionOpts {
+pub(crate) struct CompletionOpts {
     /// For which shell to generate the autocomplete
     #[clap(value_parser, default_value = "zsh")]
     shell: clap_complete::Shell,
@@ -377,7 +377,7 @@ pub struct CompletionOpts {
 #[derive(Parser, Debug)]
 #[clap(version, about)]
 /// Top-level command-line options for the `hstdb` binary.
-pub struct Opt {
+pub(crate) struct Opt {
     #[clap(flatten)]
     default_args: DefaultArgs,
 
@@ -387,7 +387,7 @@ pub struct Opt {
 
 impl Opt {
     /// Executes the selected `hstdb` command.
-    pub fn run(self) -> color_eyre::Result<()> {
+    pub(crate) fn run(self) -> color_eyre::Result<()> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;
         let folder = self.default_args.folder;

@@ -1,9 +1,3 @@
-#![allow(
-    missing_docs,
-    reason = "integration tests are not part of the public API"
-)]
-
-use pretty_assertions::assert_eq;
 use std::{
     path::PathBuf,
     sync::{
@@ -14,7 +8,10 @@ use std::{
 };
 
 use chrono::Utc;
-use hstdb::{
+use pretty_assertions::assert_eq;
+use uuid::Uuid;
+
+use crate::{
     client::{
         self,
         Client,
@@ -31,7 +28,6 @@ use hstdb::{
         Filter,
     },
 };
-use uuid::Uuid;
 
 struct TestClient {
     client: Client,

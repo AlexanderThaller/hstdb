@@ -1,10 +1,10 @@
 //! CSV-backed persistent history storage for `hstdb`.
 
 /// Query filtering primitives used when reading history entries.
-pub mod filter;
+pub(crate) mod filter;
 
 use crate::entry::Entry;
-pub use filter::Filter;
+pub(crate) use filter::Filter;
 use std::{
     cmp::Reverse,
     collections::BinaryHeap,
@@ -19,7 +19,7 @@ use thiserror::Error;
 
 /// Errors returned while writing or reading persistent history files.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// Creating the directory for host history files failed.
     #[error("can not create log folder: {0}: {1}")]
     CreateLogFolder(PathBuf, #[source] std::io::Error),
@@ -51,19 +51,19 @@ pub enum Error {
 
 /// CSV-backed history store organized as one file per host.
 #[derive(Debug)]
-pub struct Store {
+pub(crate) struct Store {
     data_dir: PathBuf,
 }
 
 #[must_use]
 /// Creates a store rooted at `data_dir`.
-pub const fn new(data_dir: PathBuf) -> Store {
+pub(crate) const fn new(data_dir: PathBuf) -> Store {
     Store { data_dir }
 }
 
 impl Store {
     /// Appends an entry to the host-specific CSV file.
-    pub fn add_entry(&self, entry: &Entry) -> Result<(), Error> {
+    pub(crate) fn add_entry(&self, entry: &Entry) -> Result<(), Error> {
         let hostname = &entry.hostname;
 
         let folder_path = self.data_dir.as_path();
@@ -96,7 +96,7 @@ impl Store {
     }
 
     /// Appends an entry when it contains a non-empty command.
-    pub fn add(&self, entry: &Entry) -> Result<(), Error> {
+    pub(crate) fn add(&self, entry: &Entry) -> Result<(), Error> {
         if entry.command.is_empty() {
             return Ok(());
         }

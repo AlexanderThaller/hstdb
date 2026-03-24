@@ -1,11 +1,14 @@
 //! Server-side socket handling and coordination of in-flight commands.
 
 /// Builder types for constructing a [`Server`].
-pub mod builder;
+pub(crate) mod builder;
 /// Embedded key-value database used for transient server state.
-pub mod db;
+pub(crate) mod db;
 
-pub use builder::Builder;
+#[cfg(test)]
+mod tests;
+
+pub(crate) use builder::Builder;
 
 use std::{
     os::unix::net::UnixDatagram,
@@ -55,7 +58,7 @@ const BUFFER_SIZE: usize = 16_384;
 
 /// Errors returned while receiving, decoding, and processing server messages.
 #[derive(Error, Debug)]
-pub enum Error {
+pub(crate) enum Error {
     /// Reading a datagram from the Unix socket failed.
     #[error("can not receive message from socket: {0}")]
     ReceiveFromSocket(std::io::Error),
@@ -100,7 +103,7 @@ pub enum Error {
 
 /// Running `hstdb` server instance.
 #[derive(Debug)]
-pub struct Server {
+pub(crate) struct Server {
     pub(super) db: Db,
     pub(super) socket: UnixDatagram,
     pub(super) socket_path: PathBuf,
@@ -112,7 +115,7 @@ pub struct Server {
 
 #[must_use]
 /// Creates a [`Builder`] for a server bound to the given paths.
-pub fn builder(
+pub(crate) fn builder(
     data_dir: PathBuf,
     state_dir: PathBuf,
     socket: PathBuf,
@@ -128,7 +131,7 @@ pub fn builder(
 
 impl Server {
     /// Starts the receiver and processor threads and blocks until shutdown.
-    pub fn run(self) -> color_eyre::Result<()> {
+    pub(crate) fn run(self) -> color_eyre::Result<()> {
         let data_sender = Self::start_processor(
             Arc::clone(&self.stopping),
             self.wait_group.clone(),
