@@ -76,6 +76,25 @@ eval "$(hstdb init)"
 You can run that in your current shell to enable hstdb or restart your
 shell.
 
+If [`skim`](https://github.com/lotabout/skim) is installed and `sk` is on
+your `PATH`, the init script also binds `Ctrl-R` in `zsh` to an interactive
+history picker backed by `hstdb`.
+
+The picker queries the newest 10,000 history entries by default and inserts
+the selected command into the current command line.
+
+You can customize the history size, the `hstdb` query filters, or the `sk`
+UI with:
+
+```zsh
+export HSTDB_SKIM_HISTORY_ENTRIES_COUNT=10000
+export HSTDB_SKIM_HISTORY_ARGS='--all-hosts --filter-failed'
+export HSTDB_SKIM_CTRL_R_OPTS='--preview "echo {}"'
+```
+
+Set `HSTDB_SKIM_HISTORY_ENTRIES_COUNT=0` if you want the picker to query the
+full history.
+
 ## Usage
 
 ```text
