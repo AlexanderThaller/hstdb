@@ -146,7 +146,7 @@ struct Socket {
 
 #[derive(Parser, Debug)]
 struct Config {
-    /// Path to the socket for communication with the server
+    /// Path to the configuration file
     #[clap(long, env = "HSTDB_CONFIG_PATH", default_value_os_t = default_config_path())]
     config_path: PathBuf,
 }
