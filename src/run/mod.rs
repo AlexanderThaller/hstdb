@@ -117,16 +117,13 @@ impl Default for TableDisplay {
 }
 
 #[derive(Debug)]
+#[derive(Default)]
 pub enum Display {
+    #[default]
     Hide,
     Show,
 }
 
-impl Default for Display {
-    fn default() -> Self {
-        Self::Hide
-    }
-}
 
 impl Display {
     const fn is_show(&self) -> bool {
