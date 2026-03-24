@@ -150,8 +150,8 @@ hstdb import histdb
 ```
 
 This will create CSV files for each `hostname` found in the sqlite database. It
-will create a UUID for each unique session found in sqlite so command run in the
-same session should still be grouped together.
+will create a UUID for each unique session found in sqlite so commands run in the
+same session are still grouped together.
 
 {% endif %}
 ### zsh histfile
