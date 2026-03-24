@@ -107,7 +107,7 @@ pub enum Error {
     RemoveDbEntry(db::Error),
 
     /// Persisting a finished entry to the store failed.
-    #[error("can not add to storeo: {0}")]
+    #[error("can not add to store: {0}")]
     AddStore(crate::store::Error),
 
     /// Accessing the transient database failed.
