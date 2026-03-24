@@ -131,22 +131,6 @@ impl<'a> Filter<'a> {
         }
     }
 
-    #[allow(dead_code, reason = "retained as a convenience for callers and tests")]
-    #[must_use]
-    /// Applies the filter to a set of entries and returns the matching subset.
-    pub fn filter_entries(&self, entries: Vec<Entry>) -> Vec<Entry> {
-        let filtered: Vec<Entry> = entries
-            .into_iter()
-            .filter(|entry| self.matches_entry(entry))
-            .collect();
-
-        if self.count > 0 {
-            filtered.into_iter().rev().take(self.count).rev().collect()
-        } else {
-            filtered
-        }
-    }
-
     #[must_use]
     /// Returns whether `entry` matches the configured filter.
     pub fn matches_entry(&self, entry: &Entry) -> bool {
