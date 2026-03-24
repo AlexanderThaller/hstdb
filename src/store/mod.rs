@@ -63,9 +63,9 @@ pub(crate) struct Store {
     cache_path: Option<PathBuf>,
 }
 
+#[cfg(test)]
 #[must_use]
 /// Creates a store rooted at `data_dir`.
-#[allow(dead_code, reason = "used by tests and CSV-only call sites")]
 pub(crate) const fn new(data_dir: PathBuf) -> Store {
     Store {
         data_dir,

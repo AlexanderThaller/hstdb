@@ -213,7 +213,7 @@ struct DataDir {
 
 #[derive(Parser, Debug)]
 struct CachePath {
-    /// Path to the local SQLite cache database
+    /// Path to the local `SQLite` cache database
     #[clap(
         long,
         env = "HSTDB_CACHE_PATH",
@@ -376,7 +376,7 @@ enum SubCommand {
     #[clap(subcommand, name = "import")]
     Import(Import),
 
-    /// Rebuild the local SQLite cache database from the CSV store
+    /// Rebuild the local `SQLite` cache database from the CSV store
     #[clap(name = "sync-cache")]
     SyncCache(SyncCache),
 
