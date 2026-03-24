@@ -12,48 +12,24 @@ use crate::opt::{
     Opt,
 };
 
-const README_USAGE_START: &str = "<!-- BEGIN GENERATED SECTION: usage-help -->";
-const README_USAGE_END: &str = "<!-- END GENERATED SECTION: usage-help -->";
-const README_IMPORT_HISTDB_START: &str = "<!-- BEGIN GENERATED SECTION: import-histdb-help -->";
-const README_IMPORT_HISTDB_END: &str = "<!-- END GENERATED SECTION: import-histdb-help -->";
-const README_IMPORT_HISTFILE_START: &str = "<!-- BEGIN GENERATED SECTION: import-histfile-help -->";
-const README_IMPORT_HISTFILE_END: &str = "<!-- END GENERATED SECTION: import-histfile-help -->";
-const README_COMPLETION_START: &str = "<!-- BEGIN GENERATED SECTION: completion-help -->";
-const README_COMPLETION_END: &str = "<!-- END GENERATED SECTION: completion-help -->";
-
-#[derive(Debug, Clone, Copy)]
-struct HelpSection {
-    command_path: &'static [&'static str],
-    start_marker: &'static str,
-    end_marker: &'static str,
-}
-
 #[derive(Template)]
-#[template(path = "readme_section.md", escape = "none")]
-struct ReadmeSectionTemplate<'a> {
-    start_marker: &'a str,
-    help: &'a str,
-    end_marker: &'a str,
+#[template(path = "README.md", escape = "none")]
+struct ReadmeTemplate {
+    usage_help: String,
+    import_histdb_help: String,
+    import_histfile_help: String,
+    completion_help: String,
+    include_histdb_import: bool,
 }
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("can not read README file {path}: {source}")]
-    ReadReadme {
-        path: PathBuf,
-        #[source]
-        source: std::io::Error,
-    },
-
     #[error("can not write README file {path}: {source}")]
     WriteReadme {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
-
-    #[error("missing README marker `{marker}`")]
-    MissingMarker { marker: &'static str },
 
     #[error("missing clap subcommand `{name}` while rendering README help")]
     MissingSubCommand { name: &'static str },
@@ -63,11 +39,7 @@ pub enum Error {
 }
 
 pub fn generate(readme_path: PathBuf) -> Result<(), Error> {
-    let readme = fs::read_to_string(&readme_path).map_err(|source| Error::ReadReadme {
-        path: readme_path.clone(),
-        source,
-    })?;
-    let rendered = replace_generated_sections(&readme)?;
+    let rendered = render_readme()?;
 
     fs::write(&readme_path, rendered).map_err(|source| Error::WriteReadme {
         path: readme_path,
@@ -77,78 +49,21 @@ pub fn generate(readme_path: PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
-fn replace_generated_sections(readme: &str) -> Result<String, Error> {
-    let mut rendered = readme.to_owned();
-
-    for section in help_sections() {
-        rendered = replace_section(
-            &rendered,
-            section.start_marker,
-            section.end_marker,
-            &render_help(section.command_path)?,
-        )?;
-    }
-
-    Ok(rendered)
-}
-
-fn help_sections() -> Vec<HelpSection> {
-    let mut sections = vec![HelpSection {
-        command_path: &[],
-        start_marker: README_USAGE_START,
-        end_marker: README_USAGE_END,
-    }];
-
+fn render_readme() -> Result<String, Error> {
     #[cfg(feature = "histdb-import")]
-    sections.push(HelpSection {
-        command_path: &["import", "histdb"],
-        start_marker: README_IMPORT_HISTDB_START,
-        end_marker: README_IMPORT_HISTDB_END,
-    });
+    let import_histdb_help = render_help(&["import", "histdb"])?;
 
-    sections.push(HelpSection {
-        command_path: &["import", "histfile"],
-        start_marker: README_IMPORT_HISTFILE_START,
-        end_marker: README_IMPORT_HISTFILE_END,
-    });
-    sections.push(HelpSection {
-        command_path: &["completion"],
-        start_marker: README_COMPLETION_START,
-        end_marker: README_COMPLETION_END,
-    });
+    #[cfg(not(feature = "histdb-import"))]
+    let import_histdb_help = String::new();
 
-    sections
-}
-
-fn replace_section(
-    readme: &str,
-    start_marker: &'static str,
-    end_marker: &'static str,
-    help: &str,
-) -> Result<String, Error> {
-    let start = readme.find(start_marker).ok_or(Error::MissingMarker {
-        marker: start_marker,
-    })?;
-    let after_start = start + start_marker.len();
-
-    let end = readme[after_start..]
-        .find(end_marker)
-        .map(|index| after_start + index)
-        .ok_or(Error::MissingMarker { marker: end_marker })?;
-
-    let replacement = ReadmeSectionTemplate {
-        start_marker,
-        help: help.trim_end(),
-        end_marker,
+    Ok(ReadmeTemplate {
+        usage_help: render_help(&[])?,
+        import_histdb_help,
+        import_histfile_help: render_help(&["import", "histfile"])?,
+        completion_help: render_help(&["completion"])?,
+        include_histdb_import: cfg!(feature = "histdb-import"),
     }
-    .render()?;
-
-    let mut updated = String::with_capacity(readme.len() - (end - start) + replacement.len());
-    updated.push_str(&readme[..start]);
-    updated.push_str(&replacement);
-    updated.push_str(&readme[end + end_marker.len()..]);
-
-    Ok(updated)
+    .render()?)
 }
 
 fn render_help(command_path: &'static [&'static str]) -> Result<String, Error> {
@@ -202,13 +117,14 @@ fn normalize_help_for_docs(help: String) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::{
-        README_USAGE_END,
-        README_USAGE_START,
+        generate,
         help_command_path,
         normalize_help_for_docs,
         render_help,
-        replace_section,
+        render_readme,
     };
 
     #[test]
@@ -220,21 +136,30 @@ mod tests {
     }
 
     #[test]
-    fn replace_section_only_updates_marked_content() {
-        let original = format!("before\n{README_USAGE_START}\nold\n{README_USAGE_END}\nafter\n");
+    fn render_readme_contains_generated_help() {
+        let readme = render_readme().expect("README should render");
 
-        let replaced = replace_section(
-            &original,
-            README_USAGE_START,
-            README_USAGE_END,
-            "Usage: hstdb\n",
-        )
-        .expect("README markers should be replaced");
+        assert!(readme.contains("# hstdb"));
+        assert!(readme.contains("Usage: hstdb [OPTIONS] [COMMAND]"));
+        assert!(readme.contains("Usage: hstdb import histfile [OPTIONS]"));
+        assert!(readme.contains("Usage: hstdb completion [SHELL]"));
 
-        assert!(replaced.starts_with("before\n"));
-        assert!(replaced.contains("```text\nUsage: hstdb"));
-        assert!(replaced.contains("\n```"));
-        assert!(replaced.ends_with("after\n"));
+        if cfg!(feature = "histdb-import") {
+            assert!(readme.contains("Usage: hstdb import histdb [OPTIONS]"));
+        }
+    }
+
+    #[test]
+    fn generate_writes_rendered_readme() {
+        let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+        let readme_path = temp_dir.path().join("README.md");
+
+        generate(readme_path.clone()).expect("README generation should succeed");
+
+        let written = fs::read_to_string(readme_path).expect("generated README should be readable");
+        let expected = render_readme().expect("README should render");
+
+        assert_eq!(expected, written);
     }
 
     #[test]
