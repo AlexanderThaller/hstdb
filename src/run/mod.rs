@@ -133,14 +133,13 @@ impl Display {
     }
 }
 
-#[expect(clippy::result_large_err, reason = "will fix this if needed")]
 /// Loads entries from storage and prints them using the selected display mode.
 pub fn default(
     filter: &Filter<'_>,
     display: &TableDisplay,
-    data_dir: PathBuf,
+    data_dir: &Path,
 ) -> color_eyre::Result<()> {
-    let entries = store::new(data_dir.clone())
+    let entries = store::new(data_dir.to_path_buf())
         .get_entries(filter)
         .wrap_err_with(|| format!("can not load history entries from {}", data_dir.display()))?;
 
@@ -323,14 +322,14 @@ fn default_format_entry(
 pub fn zsh_add_history(
     config: &config::Config,
     command: String,
-    socket_path: PathBuf,
+    socket_path: &Path,
 ) -> color_eyre::Result<()> {
     if config.ignore_space && command.starts_with(' ') {
         debug!("not recording a command starting with a space");
     } else {
         let data = CommandStart::from_env(config, command)
             .wrap_err("can not build command-start message from current shell environment")?;
-        client::new(socket_path.clone())
+        client::new(socket_path.to_path_buf())
             .send(&Message::CommandStart(data))
             .wrap_err_with(|| {
                 format!(
@@ -344,26 +343,31 @@ pub fn zsh_add_history(
 }
 
 /// Starts the local history server.
-pub fn server(cache_dir: PathBuf, socket: PathBuf, data_dir: PathBuf) -> color_eyre::Result<()> {
-    server::builder(cache_dir.clone(), data_dir.clone(), socket.clone(), true)
-        .build()
-        .wrap_err_with(|| {
-            format!(
-                "can not build hstdb server with cache {}, data dir {}, and socket {}",
-                cache_dir.display(),
-                data_dir.display(),
-                socket.display()
-            )
-        })?
-        .run()
-        .wrap_err_with(|| format!("can not run hstdb server on socket {}", socket.display()))?;
+pub fn server(cache_dir: &Path, socket: &Path, data_dir: &Path) -> color_eyre::Result<()> {
+    server::builder(
+        cache_dir.to_path_buf(),
+        data_dir.to_path_buf(),
+        socket.to_path_buf(),
+        true,
+    )
+    .build()
+    .wrap_err_with(|| {
+        format!(
+            "can not build hstdb server with cache {}, data dir {}, and socket {}",
+            cache_dir.display(),
+            data_dir.display(),
+            socket.display()
+        )
+    })?
+    .run()
+    .wrap_err_with(|| format!("can not run hstdb server on socket {}", socket.display()))?;
 
     Ok(())
 }
 
 /// Requests a graceful server shutdown over the control socket.
-pub fn stop(socket_path: PathBuf) -> color_eyre::Result<()> {
-    client::new(socket_path.clone())
+pub fn stop(socket_path: &Path) -> color_eyre::Result<()> {
+    client::new(socket_path.to_path_buf())
         .send(&Message::Stop)
         .wrap_err_with(|| {
             format!(
@@ -376,10 +380,10 @@ pub fn stop(socket_path: PathBuf) -> color_eyre::Result<()> {
 }
 
 /// Disables history recording for the current session.
-pub fn disable(socket_path: PathBuf) -> color_eyre::Result<()> {
+pub fn disable(socket_path: &Path) -> color_eyre::Result<()> {
     let session_id = session_id_from_env()
         .wrap_err("can not read session id from environment before disabling history")?;
-    client::new(socket_path.clone())
+    client::new(socket_path.to_path_buf())
         .send(&Message::Disable(session_id))
         .wrap_err_with(|| {
             format!(
@@ -392,10 +396,10 @@ pub fn disable(socket_path: PathBuf) -> color_eyre::Result<()> {
 }
 
 /// Re-enables history recording for the current session.
-pub fn enable(socket_path: PathBuf) -> color_eyre::Result<()> {
+pub fn enable(socket_path: &Path) -> color_eyre::Result<()> {
     let session_id = session_id_from_env()
         .wrap_err("can not read session id from environment before enabling history")?;
-    client::new(socket_path.clone())
+    client::new(socket_path.to_path_buf())
         .send(&Message::Enable(session_id))
         .wrap_err_with(|| {
             format!(
@@ -408,11 +412,11 @@ pub fn enable(socket_path: PathBuf) -> color_eyre::Result<()> {
 }
 
 /// Records a command completion event emitted by the zsh `precmd` hook.
-pub fn precmd(socket_path: PathBuf) -> color_eyre::Result<()> {
+pub fn precmd(socket_path: &Path) -> color_eyre::Result<()> {
     let data = CommandFinished::from_env()
         .wrap_err("can not build command-finished message from current shell environment")?;
 
-    client::new(socket_path.clone())
+    client::new(socket_path.to_path_buf())
         .send(&Message::CommandFinished(data))
         .wrap_err_with(|| {
             format!(

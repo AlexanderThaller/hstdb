@@ -324,6 +324,10 @@ pub struct Opt {
 
 impl Opt {
     /// Executes the selected `hstdb` command.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "this is the main entry point for the CLI and it's fine if it's a bit long"
+    )]
     pub fn run(self) -> color_eyre::Result<()> {
         let sub_command = self.sub_command;
         let in_current = self.default_args.in_current;
@@ -376,31 +380,35 @@ impl Opt {
                     status,
                 };
 
-                run::default(&filter, &display, data_dir)
+                run::default(&filter, &display, &data_dir)
                     .wrap_err("can not render history entries")?;
             }
             Some(sub_command) => match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
-                    run::zsh_add_history(&config, o.command, o.socket_path.socket_path)
+                    run::zsh_add_history(&config, o.command, &o.socket_path.socket_path)
                         .wrap_err("can not record command start from zshaddhistory")?;
                 }
                 SubCommand::Server(o) => {
-                    run::server(o.cache_path, o.socket_path.socket_path, o.data_dir.data_dir)
-                        .wrap_err("can not start hstdb server")?;
+                    run::server(
+                        &o.cache_path,
+                        &o.socket_path.socket_path,
+                        &o.data_dir.data_dir,
+                    )
+                    .wrap_err("can not start hstdb server")?;
                 }
                 SubCommand::Stop(o) => {
-                    run::stop(o.socket_path).wrap_err("can not stop hstdb server")?;
+                    run::stop(&o.socket_path).wrap_err("can not stop hstdb server")?;
                 }
                 SubCommand::Disable(o) => {
-                    run::disable(o.socket_path)
+                    run::disable(&o.socket_path)
                         .wrap_err("can not disable history recording for this session")?;
                 }
                 SubCommand::Enable(o) => {
-                    run::enable(o.socket_path)
+                    run::enable(&o.socket_path)
                         .wrap_err("can not enable history recording for this session")?;
                 }
                 SubCommand::PreCmd(o) => {
-                    run::precmd(o.socket_path)
+                    run::precmd(&o.socket_path)
                         .wrap_err("can not record command completion from precmd")?;
                 }
                 SubCommand::SessionID => run::session_id(),

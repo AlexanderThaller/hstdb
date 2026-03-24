@@ -233,10 +233,7 @@ pub fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::R
         };
 
         store.add_entry(&entry).wrap_err_with(|| {
-            format!(
-                "can not write imported histdb entry into data dir {}",
-                data_dir_display
-            )
+            format!("can not write imported histdb entry into data dir {data_dir_display}")
         })?;
     }
 
@@ -389,10 +386,7 @@ pub fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre:
         };
 
         store.add_entry(&entry).wrap_err_with(|| {
-            format!(
-                "can not write imported histfile entry into data dir {}",
-                data_dir_display
-            )
+            format!("can not write imported histfile entry into data dir {data_dir_display}")
         })?;
     }
 
