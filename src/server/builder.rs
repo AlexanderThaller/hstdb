@@ -40,6 +40,7 @@ pub(crate) enum Error {
 pub(crate) struct Builder {
     pub(super) state_dir: PathBuf,
     pub(super) data_dir: PathBuf,
+    pub(super) cache_path: PathBuf,
     pub(super) socket: PathBuf,
     pub(super) handle_ctrlc: bool,
 }
@@ -54,7 +55,7 @@ impl Builder {
         let socket = UnixDatagram::bind(&self.socket)
             .map_err(|err| Error::BindSocket(self.socket.clone(), err))?;
 
-        let store = store::new(self.data_dir);
+        let store = store::with_cache_path(self.data_dir, self.cache_path);
 
         let stopping = Arc::new(AtomicBool::new(false));
         let wait_group = WaitGroup::new();

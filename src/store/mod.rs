@@ -1,5 +1,7 @@
 //! CSV-backed persistent history storage for `hstdb`.
 
+#[cfg(feature = "histdb-import")]
+mod cache;
 /// Query filtering primitives used when reading history entries.
 pub(crate) mod filter;
 
@@ -47,18 +49,38 @@ pub(crate) enum Error {
     /// Applying a filter that depends on runtime state failed.
     #[error("{0}")]
     Filter(#[from] filter::Error),
+
+    #[cfg(feature = "histdb-import")]
+    /// Updating or querying the local cache database failed.
+    #[error("{0}")]
+    Cache(#[from] cache::Error),
 }
 
 /// CSV-backed history store organized as one file per host.
 #[derive(Debug)]
 pub(crate) struct Store {
     data_dir: PathBuf,
+    cache_path: Option<PathBuf>,
 }
 
 #[must_use]
 /// Creates a store rooted at `data_dir`.
+#[allow(dead_code, reason = "used by tests and CSV-only call sites")]
 pub(crate) const fn new(data_dir: PathBuf) -> Store {
-    Store { data_dir }
+    Store {
+        data_dir,
+        cache_path: None,
+    }
+}
+
+#[must_use]
+/// Creates a store rooted at `data_dir` with a local cache database at
+/// `cache_path`.
+pub(crate) const fn with_cache_path(data_dir: PathBuf, cache_path: PathBuf) -> Store {
+    Store {
+        data_dir,
+        cache_path: Some(cache_path),
+    }
 }
 
 impl Store {
@@ -92,6 +114,11 @@ impl Store {
 
         writer.serialize(entry).map_err(Error::SerializeEntry)?;
 
+        #[cfg(feature = "histdb-import")]
+        if let Some(cache_path) = &self.cache_path {
+            cache::append_entry(cache_path, entry)?;
+        }
+
         Ok(())
     }
 
@@ -108,6 +135,17 @@ impl Store {
 
     /// Reads, sorts, and filters entries from the persistent store.
     pub(crate) fn get_entries(&self, filter: &Filter<'_>) -> Result<Vec<Entry>, Error> {
+        #[cfg(feature = "histdb-import")]
+        if let Some(cache_path) = &self.cache_path {
+            if !cache_path.exists() {
+                self.sync_cache()?;
+            }
+
+            if cache_path.exists() {
+                return cache::get_entries(cache_path, filter).map_err(Error::from);
+            }
+        }
+
         let mut collector = EntryCollector::new(filter.count_limit());
 
         if let Some(hostname) = filter.get_hostname() {
@@ -129,6 +167,16 @@ impl Store {
         }
 
         Ok(collector.finish())
+    }
+
+    /// Rebuilds the local cache database from the CSV store.
+    pub(crate) fn sync_cache(&self) -> Result<(), Error> {
+        #[cfg(feature = "histdb-import")]
+        if let Some(cache_path) = &self.cache_path {
+            cache::sync_from_csv(&self.data_dir, cache_path)?;
+        }
+
+        Ok(())
     }
 
     fn read_log_file<P: AsRef<Path>>(
@@ -288,5 +336,22 @@ mod test {
         let entries = store.get_entries(&filter).unwrap();
 
         assert_eq!(entries, vec![entry(3, "keep-three"), entry(4, "keep-four")]);
+    }
+
+    #[cfg(feature = "histdb-import")]
+    #[test]
+    fn sync_cache_rebuilds_database_from_csv() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let store = crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path);
+
+        store.add_entry(&entry(1, "first")).unwrap();
+        store.add_entry(&entry(2, "second")).unwrap();
+        store.sync_cache().unwrap();
+
+        let entries = store.get_entries(&Filter::default()).unwrap();
+
+        assert_eq!(entries, vec![entry(1, "first"), entry(2, "second")]);
     }
 }

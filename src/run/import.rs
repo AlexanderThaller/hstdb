@@ -129,7 +129,11 @@ pub(crate) enum Error {
 
 #[cfg(feature = "histdb-import")]
 /// Imports entries from the original `zsh-histdb` `SQLite` database.
-pub(crate) fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn histdb(
+    import_file: impl AsRef<Path>,
+    data_dir: PathBuf,
+    cache_path: PathBuf,
+) -> color_eyre::Result<()> {
     #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
     struct DBEntry {
         session: i64,
@@ -182,7 +186,7 @@ pub(crate) fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_
     let mut session_ids = std::collections::HashMap::new();
 
     let data_dir_display = data_dir.display().to_string();
-    let store = crate::store::new(data_dir);
+    let store = crate::store::with_cache_path(data_dir, cache_path);
 
     for entry in entries {
         if entry.duration.is_none()
@@ -245,7 +249,11 @@ pub(crate) fn histdb(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_
     reason = "this function is too long and we should split it up"
 )]
 /// Imports entries from a zsh `HISTFILE`.
-pub(crate) fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> color_eyre::Result<()> {
+pub(crate) fn histfile(
+    import_file: impl AsRef<Path>,
+    data_dir: PathBuf,
+    cache_path: PathBuf,
+) -> color_eyre::Result<()> {
     #[derive(Debug)]
     struct HistfileEntry {
         time_finished: DateTime<Utc>,
@@ -353,7 +361,7 @@ pub(crate) fn histfile(import_file: impl AsRef<Path>, data_dir: PathBuf) -> colo
     }
 
     let data_dir_display = data_dir.display().to_string();
-    let store = crate::store::new(data_dir);
+    let store = crate::store::with_cache_path(data_dir, cache_path);
 
     let hostname = hostname::get()
         .map_err(Error::GetHostname)?

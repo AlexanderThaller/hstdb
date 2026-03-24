@@ -118,12 +118,14 @@ pub(crate) struct Server {
 pub(crate) fn builder(
     data_dir: PathBuf,
     state_dir: PathBuf,
+    cache_path: PathBuf,
     socket: PathBuf,
     handle_ctrlc: bool,
 ) -> Builder {
     Builder {
         state_dir,
         data_dir,
+        cache_path,
         socket,
         handle_ctrlc,
     }

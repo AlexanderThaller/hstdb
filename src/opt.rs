@@ -63,7 +63,7 @@ fn default_state_dir() -> PathBuf {
 
 fn default_cache_path() -> PathBuf {
     let project_dir = project_dir();
-    project_dir.cache_dir().join("server")
+    project_dir.cache_dir().join("history.sqlite3")
 }
 
 fn default_histdb_sqlite_path() -> PathBuf {
@@ -100,7 +100,7 @@ pub(crate) fn readme_help_path_replacements() -> Vec<(String, &'static str)> {
     vec![
         (
             default_cache_path().display().to_string(),
-            "$XDG_CACHE_HOME/hstdb/server",
+            "$XDG_CACHE_HOME/hstdb/history.sqlite3",
         ),
         (
             default_config_path().display().to_string(),
@@ -137,9 +137,8 @@ struct ZSHAddHistory {
 
 #[derive(Parser, Debug)]
 struct Server {
-    /// Path to the cachefile used to store entries between restarts
-    #[clap(short, long, default_value_os_t = default_cache_path())]
-    cache_path: PathBuf,
+    #[clap(flatten)]
+    cache_path: CachePath,
 
     #[clap(flatten)]
     data_dir: DataDir,
@@ -166,6 +165,9 @@ struct ImportHistdb {
     #[clap(flatten)]
     data_dir: DataDir,
 
+    #[clap(flatten)]
+    cache_path: CachePath,
+
     /// Path to the existing histdb sqlite file
     #[clap(long, env = "HISTDB_FILE", default_value_os_t = default_histdb_sqlite_path())]
     import_file: PathBuf,
@@ -175,6 +177,9 @@ struct ImportHistdb {
 struct ImportHistfile {
     #[clap(flatten)]
     data_dir: DataDir,
+
+    #[clap(flatten)]
+    cache_path: CachePath,
 
     /// Path to the existing zsh histfile file
     #[clap(long, env = "HISTFILE", default_value_os_t = default_zsh_histfile_path())]
@@ -207,6 +212,17 @@ struct DataDir {
 }
 
 #[derive(Parser, Debug)]
+struct CachePath {
+    /// Path to the local SQLite cache database
+    #[clap(
+        long,
+        env = "HSTDB_CACHE_PATH",
+        default_value_os_t = default_cache_path()
+    )]
+    cache_path: PathBuf,
+}
+
+#[derive(Parser, Debug)]
 struct StateDir {
     /// Path to folder in which to store server state
     #[clap(
@@ -233,6 +249,9 @@ struct GenerateReadme {
 struct DefaultArgs {
     #[clap(flatten)]
     data_dir: DataDir,
+
+    #[clap(flatten)]
+    cache_path: CachePath,
 
     /// How many entries to print
     #[clap(short, long, default_value = "25")]
@@ -314,6 +333,15 @@ struct DefaultArgs {
     config: Config,
 }
 
+#[derive(Parser, Debug)]
+struct SyncCache {
+    #[clap(flatten)]
+    data_dir: DataDir,
+
+    #[clap(flatten)]
+    cache_path: CachePath,
+}
+
 #[derive(Subcommand, Debug)]
 enum SubCommand {
     /// Add new command for current session
@@ -347,6 +375,10 @@ enum SubCommand {
     /// Import entries from existing histdb sqlite or zsh histfile
     #[clap(subcommand, name = "import")]
     Import(Import),
+
+    /// Rebuild the local SQLite cache database from the CSV store
+    #[clap(name = "sync-cache")]
+    SyncCache(SyncCache),
 
     /// Print out shell functions needed by hstdb and set current session id
     #[clap(name = "init")]
@@ -394,6 +426,7 @@ impl Opt {
         let all_hosts = self.default_args.all_hosts;
         let hostname = self.default_args.hostname;
         let data_dir = self.default_args.data_dir.data_dir;
+        let cache_path = self.default_args.cache_path.cache_path;
         let entries_count = self.default_args.entries_count;
         let command = self.default_args.command;
         let session_filter = self.default_args.session;
@@ -438,7 +471,7 @@ impl Opt {
                     status,
                 };
 
-                run::default(&filter, &display, &data_dir)
+                run::default(&filter, &display, &data_dir, &cache_path)
             },
             |sub_command| match sub_command {
                 SubCommand::ZSHAddHistory(o) => {
@@ -449,6 +482,7 @@ impl Opt {
                     &o.socket_path.socket_path,
                     &o.data_dir.data_dir,
                     &o.state_dir.state_dir,
+                    &o.cache_path.cache_path,
                 ),
                 SubCommand::Stop(o) => run::stop(&o.socket_path),
                 SubCommand::Disable(o) => run::disable(&o.socket_path),
@@ -460,11 +494,20 @@ impl Opt {
                 }
                 SubCommand::Import(s) => match s {
                     #[cfg(feature = "histdb-import")]
-                    Import::Histdb(o) => run::import::histdb(&o.import_file, o.data_dir.data_dir),
-                    Import::Histfile(o) => {
-                        run::import::histfile(&o.import_file, o.data_dir.data_dir)
-                    }
+                    Import::Histdb(o) => run::import::histdb(
+                        &o.import_file,
+                        o.data_dir.data_dir,
+                        o.cache_path.cache_path,
+                    ),
+                    Import::Histfile(o) => run::import::histfile(
+                        &o.import_file,
+                        o.data_dir.data_dir,
+                        o.cache_path.cache_path,
+                    ),
                 },
+                SubCommand::SyncCache(o) => {
+                    run::sync_cache(&o.data_dir.data_dir, &o.cache_path.cache_path)
+                }
                 SubCommand::Init => {
                     run::init();
                     Ok(())
