@@ -18,12 +18,12 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     /// Creating the directory for host history files failed.
-    #[error("can not create log folder: {0}")]
-    CreateLogFolder(PathBuf, std::io::Error),
+    #[error("can not create log folder: {0}: {1}")]
+    CreateLogFolder(PathBuf, #[source] std::io::Error),
 
     /// Opening a history file for reading or appending failed.
-    #[error("can not open log file: {0}")]
-    OpenLogFile(PathBuf, std::io::Error),
+    #[error("can not open log file: {0}: {1}")]
+    OpenLogFile(PathBuf, #[source] std::io::Error),
 
     /// Serializing an entry as CSV failed.
     #[error("can not serialize entry: {0}")]
