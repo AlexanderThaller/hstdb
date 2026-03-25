@@ -4,6 +4,12 @@ function hstdb-init() {
   export HISTDB_RS_SESSION_ID="${session_id}"
 }
 
+function hstdb-restore-cursor() {
+  if (( ${+commands[tput]} )); then
+    tput cnorm
+  fi
+}
+
 function hstdb-history-widget() {
   emulate -L zsh
   setopt localoptions noglobsubst noposixbuiltins pipefail no_aliases 2> /dev/null
@@ -40,7 +46,7 @@ function hstdb-history-widget() {
 
   selected="$(hstdb "${history_args[@]}" | sk "${skim_args[@]}")" || {
     zle reset-prompt
-    tput cnorm
+    hstdb-restore-cursor
     return 0
   }
 
@@ -52,7 +58,7 @@ function hstdb-history-widget() {
   fi
 
   zle reset-prompt
-  tput cnorm
+  hstdb-restore-cursor
 }
 
 function hstdb-zshaddhistory() {
