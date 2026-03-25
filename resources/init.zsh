@@ -39,7 +39,7 @@ function hstdb-history-widget() {
   fi
 
   history_lines=("${(@f)$(hstdb "${history_args[@]}")}")
-  history_lines=("${(@Oa)history_lines}")
+  history_lines=("${history_lines[@]::-1}")
 
   if (( ${#history_lines} == 0 )); then
     zle reset-prompt
