@@ -51,7 +51,7 @@ function hstdb-history-widget() {
     return 0
   }
 
-  selected="${selected#*$'\t'}"
+  selected="${selected##*$'\t'}"
 
   if [[ -n "${selected}" ]]; then
     BUFFER="${selected}"
