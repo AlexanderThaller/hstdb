@@ -344,6 +344,8 @@ pub(crate) fn zsh_add_history(
 ) -> color_eyre::Result<()> {
     if config.ignore_space && command.starts_with(' ') {
         debug!("not recording a command starting with a space");
+    } else if config.is_blacklisted(&command) {
+        debug!("not recording a command matching blacklist_regex");
     } else {
         let data = CommandStart::from_env(config, command)
             .wrap_err("can not build command-start message from current shell environment")?;

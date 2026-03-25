@@ -10,3 +10,8 @@ log_level = "Warn"
 # will dynamically get the hostname from the system.
 # Default: None
 hostname = "thaller-desktop-linux"
+
+# A list of regexes that will be used to filter out commands. If a
+# command matches any of the regexes in this list, it will not be saved.
+# Default: []
+blacklist_regex = ["^ls$", "^cd$"]
