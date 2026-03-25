@@ -6,10 +6,9 @@ function hstdb-init() {
 
 function hstdb-history-widget() {
   emulate -L zsh
-  setopt localoptions pipefail
+  setopt localoptions noglobsubst noposixbuiltins pipefail no_aliases 2> /dev/null
 
   local selected
-  local -a history_lines
   local -a history_args skim_args
 
   history_args=(
@@ -38,16 +37,13 @@ function hstdb-history-widget() {
     skim_args+=("${(z)HSTDB_SKIM_CTRL_R_OPTS}")
   fi
 
-  history_lines=("${(@f)$(hstdb "${history_args[@]}")}")
-  history_lines=("${history_lines[@]::-1}")
-
-  if (( ${#history_lines} == 0 )); then
+  selected="$(
+    hstdb "${history_args[@]}" |
+      awk '{ lines[NR]=$0 } END { for (i=NR; i>=1; --i) print lines[i] }' |
+      sk "${skim_args[@]}"
+  )" || {
     zle reset-prompt
-    return 0
-  fi
-
-  selected="$(printf '%s\n' "${history_lines[@]}" | sk "${skim_args[@]}")" || {
-    zle reset-prompt
+    tput cnorm
     return 0
   }
 
@@ -59,6 +55,7 @@ function hstdb-history-widget() {
   fi
 
   zle reset-prompt
+  tput cnorm
 }
 
 function hstdb-zshaddhistory() {

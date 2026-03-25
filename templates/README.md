@@ -80,8 +80,9 @@ If [`skim`](https://github.com/lotabout/skim) is installed and `sk` is on
 your `PATH`, the init script also binds `Ctrl-R` in `zsh` to an interactive
 history picker backed by `hstdb`.
 
-The picker queries the newest 10,000 history entries by default and inserts
-the selected command into the current command line.
+The picker queries the newest 10,000 history entries by default, shows the
+latest matches first, and inserts the selected command into the current
+command line.
 
 You can customize the history size, the `hstdb` query filters, or the `sk`
 UI with:
