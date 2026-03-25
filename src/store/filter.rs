@@ -41,6 +41,8 @@ pub(crate) struct Filter<'a> {
     pub(crate) failed: bool,
     /// Optional exit status that entries must match.
     pub(crate) find_status: Option<u16>,
+    /// Whether results should be returned newest-first.
+    pub(crate) latest_first: bool,
 
     config_hostname: Option<&'a str>,
 }
@@ -56,6 +58,12 @@ impl<'a> Filter<'a> {
     /// Returns the effective hostname restriction, if any.
     pub(crate) const fn get_hostname(&self) -> Option<&String> {
         self.hostname.as_ref()
+    }
+
+    #[must_use]
+    /// Returns whether results should be ordered newest-first.
+    pub(crate) const fn is_latest_first(&self) -> bool {
+        self.latest_first
     }
 
     #[must_use]
@@ -189,6 +197,15 @@ impl<'a> Filter<'a> {
     pub(crate) fn find_status(self, find_status: Option<u16>) -> Self {
         Self {
             find_status,
+            ..self
+        }
+    }
+
+    #[must_use]
+    /// Orders results newest-first when enabled.
+    pub(crate) fn latest_first(self, latest_first: bool) -> Self {
+        Self {
+            latest_first,
             ..self
         }
     }

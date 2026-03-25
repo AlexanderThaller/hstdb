@@ -262,6 +262,10 @@ struct DefaultArgs {
     #[clap(short, long, default_value = "25")]
     entries_count: usize,
 
+    /// Print latest entries first
+    #[clap(long, hide = true)]
+    latest_first: bool,
+
     /// Only print entries beginning with the given command
     #[clap(short, long)]
     command: Option<String>,
@@ -442,6 +446,7 @@ impl Opt {
         #[cfg(not(feature = "sqlite-cache"))]
         let cache_path = default_cache_path();
         let entries_count = self.default_args.entries_count;
+        let latest_first = self.default_args.latest_first;
         let command = self.default_args.command;
         let session_filter = self.default_args.session;
         let no_subdirs = self.default_args.no_subdirs;
@@ -469,6 +474,7 @@ impl Opt {
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
                     .count(entries_count)
+                    .latest_first(latest_first)
                     .command(command, command_text, command_text_excluded)
                     .session(session_filter)
                     .filter_failed(filter_failed)

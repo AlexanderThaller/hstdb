@@ -13,6 +13,7 @@ function hstdb-history-widget() {
 
   history_args=(
     --entries-count "${HSTDB_SKIM_HISTORY_ENTRIES_COUNT:-10000}"
+    --latest-first
     --disable-formatting
     --hide-header
   )
@@ -37,11 +38,7 @@ function hstdb-history-widget() {
     skim_args+=("${(z)HSTDB_SKIM_CTRL_R_OPTS}")
   fi
 
-  selected="$(
-    hstdb "${history_args[@]}" |
-      awk '{ lines[NR]=$0 } END { for (i=NR; i>=1; --i) print lines[i] }' |
-      sk "${skim_args[@]}"
-  )" || {
+  selected="$(hstdb "${history_args[@]}" | sk "${skim_args[@]}")" || {
     zle reset-prompt
     tput cnorm
     return 0

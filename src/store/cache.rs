@@ -143,7 +143,9 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
         }
     }
 
-    entries.reverse();
+    if !filter.is_latest_first() {
+        entries.reverse();
+    }
 
     Ok(entries)
 }
