@@ -30,7 +30,7 @@ pub(crate) enum Error {
 /// User-configurable runtime settings for `hstdb`.
 #[derive(Debug)]
 pub(crate) struct Config {
-    /// Then true disables recording commands that start with a space.
+    /// When true disables recording commands that start with a space.
     pub(crate) ignore_space: bool,
 
     /// The log level to run under.
