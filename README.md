@@ -250,6 +250,16 @@ ignore_space = true
 # The log level to run under.
 # Default: Warn
 log_level = "Warn"
+
+# The hostname that should be used when writing an entry. If unset
+# will dynamically get the hostname from the system.
+# Default: None
+hostname = "thaller-desktop-linux"
+
+# A list of regexes that will be used to filter out commands. If a
+# command matches any of the regexes in this list, it will not be saved.
+# Default: []
+blacklist_regex = ["^ls$", "^cd$"]
 ```
 
 An example with all configuration options can be found in
