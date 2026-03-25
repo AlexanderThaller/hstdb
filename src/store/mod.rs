@@ -188,7 +188,7 @@ impl Store {
             }
         }
 
-        Ok(collector.finish())
+        Ok(collector.finish(filter.is_latest_first()))
     }
 
     #[cfg(feature = "sqlite-cache")]
@@ -274,13 +274,18 @@ impl EntryCollector {
         }
     }
 
-    fn finish(self) -> Vec<Entry> {
+    fn finish(self, latest_first: bool) -> Vec<Entry> {
         let mut entries = match self {
             Self::All(entries) => entries,
             Self::Top { entries, .. } => entries.into_iter().map(|entry| entry.0).collect(),
         };
 
-        entries.sort();
+        if latest_first {
+            entries.sort_by(|left, right| right.cmp(left));
+        } else {
+            entries.sort();
+        }
+
         entries
     }
 }
@@ -378,7 +383,7 @@ mod test {
         collector.push(entry(4, "fourth"));
         collector.push(entry(2, "second"));
 
-        let entries = collector.finish();
+        let entries = collector.finish(false);
 
         assert_eq!(entries, vec![entry(3, "third"), entry(4, "fourth")]);
     }
@@ -401,6 +406,23 @@ mod test {
         let entries = store.get_entries(&filter).unwrap();
 
         assert_eq!(entries, vec![entry(3, "keep-three"), entry(4, "keep-four")]);
+    }
+
+    #[test]
+    fn get_entries_returns_latest_first_when_requested() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let store = crate::store::new(data_dir.path().to_path_buf());
+
+        store.add_entry(&entry(1, "first")).unwrap();
+        store.add_entry(&entry(2, "second")).unwrap();
+        store.add_entry(&entry(3, "third")).unwrap();
+
+        let config = Config::default();
+        let filter = Filter::new(&config).count(2).latest_first(true);
+
+        let entries = store.get_entries(&filter).unwrap();
+
+        assert_eq!(entries, vec![entry(3, "third"), entry(2, "second")]);
     }
 
     #[cfg(feature = "sqlite-cache")]
@@ -440,6 +462,29 @@ mod test {
         cache_store.sync_cache().unwrap();
 
         let filter = Filter::default();
+        let csv_entries = csv_store.get_entries(&filter).unwrap();
+        let cache_entries = cache_store.get_entries(&filter).unwrap();
+
+        assert_eq!(cache_entries, csv_entries);
+    }
+
+    #[cfg(feature = "sqlite-cache")]
+    #[test]
+    fn cache_latest_first_matches_csv_order() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.path().join("history.sqlite3");
+        let csv_store = crate::store::new(data_dir.path().to_path_buf());
+        let cache_store = crate::store::with_cache_path(data_dir.path().to_path_buf(), cache_path);
+
+        csv_store.add_entry(&entry(1, "first")).unwrap();
+        csv_store.add_entry(&entry(2, "second")).unwrap();
+        csv_store.add_entry(&entry(3, "third")).unwrap();
+
+        cache_store.sync_cache().unwrap();
+
+        let config = Config::default();
+        let filter = Filter::new(&config).count(2).latest_first(true);
         let csv_entries = csv_store.get_entries(&filter).unwrap();
         let cache_entries = cache_store.get_entries(&filter).unwrap();
 
