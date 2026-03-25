@@ -464,12 +464,14 @@ impl Opt {
         let session = Display::should_show(self.default_args.show_session);
         let status = Display::should_show(self.default_args.show_status);
 
-        env_logger::init();
+        let config = config::Config::open(&config_path).wrap_err("failed to open config file")?;
+
+        env_logger::Builder::new()
+            .filter_level(config.log_level)
+            .init();
 
         sub_command.map_or_else(
             || {
-                let config =
-                    config::Config::open(&config_path).wrap_err("failed to open config file")?;
                 let filter = Filter::new(&config)
                     .directory(folder, in_current, no_subdirs)?
                     .hostname(hostname, all_hosts)?
