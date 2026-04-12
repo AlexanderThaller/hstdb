@@ -88,8 +88,8 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
     let conn = open_rw(cache_path)?;
 
     let mut sql = String::from(
-        "SELECT h.name, e.time_finished, e.time_start, c.name, a.text, p.path, e.result, \
-         s.uuid, u.name
+        "SELECT h.name, e.time_finished, e.time_start, c.name, a.text, p.path, e.result, s.uuid, \
+         u.name
          FROM entries e
          JOIN hostnames     h ON h.id = e.hostname_id
          JOIN commands      c ON c.id = e.command_id
@@ -106,8 +106,8 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
     }
 
     sql.push_str(
-        " ORDER BY e.time_finished DESC, e.time_start DESC, h.name DESC, c.name DESC, \
-         a.text DESC, p.path DESC, e.result DESC, s.uuid DESC, u.name DESC",
+        " ORDER BY e.time_finished DESC, e.time_start DESC, h.name DESC, c.name DESC, a.text \
+         DESC, p.path DESC, e.result DESC, s.uuid DESC, u.name DESC",
     );
 
     let mut stmt = conn
@@ -384,8 +384,8 @@ fn insert_entry(conn: &Connection, cache_path: &Path, entry: &Entry) -> Result<(
 
     conn.execute(
         "INSERT INTO entries
-         (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, result, \
-         session_id, user_id)
+         (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, result, session_id, \
+         user_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![
             hostname_id,
@@ -457,8 +457,7 @@ struct InternStmts<'conn> {
 impl<'conn> InternStmts<'conn> {
     fn prepare(conn: &'conn Connection) -> Result<Self, rusqlite::Error> {
         Ok(Self {
-            insert_hostname: conn
-                .prepare("INSERT OR IGNORE INTO hostnames (name) VALUES (?1)")?,
+            insert_hostname: conn.prepare("INSERT OR IGNORE INTO hostnames (name) VALUES (?1)")?,
             select_hostname: conn.prepare("SELECT id FROM hostnames WHERE name = ?1")?,
             insert_user: conn.prepare("INSERT OR IGNORE INTO users (name) VALUES (?1)")?,
             select_user: conn.prepare("SELECT id FROM users WHERE name = ?1")?,
@@ -472,8 +471,8 @@ impl<'conn> InternStmts<'conn> {
             select_session: conn.prepare("SELECT id FROM sessions WHERE uuid = ?1")?,
             insert_entry: conn.prepare(
                 "INSERT INTO entries
-                 (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, \
-                 result, session_id, user_id)
+                 (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, result, \
+                 session_id, user_id)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )?,
         })
@@ -496,11 +495,7 @@ impl<'conn> InternStmts<'conn> {
             &mut self.select_command,
             params![command_name],
         )?;
-        let args_id = intern_with(
-            &mut self.insert_args,
-            &mut self.select_args,
-            params![args],
-        )?;
+        let args_id = intern_with(&mut self.insert_args, &mut self.select_args, params![args])?;
         let pwd_bytes = path_to_bytes(&entry.pwd);
         let pwd_id = intern_with(
             &mut self.insert_pwd,
