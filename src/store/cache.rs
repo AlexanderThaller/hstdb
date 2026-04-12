@@ -29,7 +29,7 @@ use std::os::unix::ffi::{
 };
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
-const SCHEMA_VERSION: &str = "2";
+const SCHEMA_VERSION: &str = "4";
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {
@@ -88,19 +88,26 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
     let conn = open_rw(cache_path)?;
 
     let mut sql = String::from(
-        "SELECT hostname, time_finished, time_start, command, pwd, result, session_id, user FROM \
-         entries",
+        "SELECT h.name, e.time_finished, e.time_start, c.name, a.text, p.path, e.result, \
+         s.uuid, u.name
+         FROM entries e
+         JOIN hostnames     h ON h.id = e.hostname_id
+         JOIN commands      c ON c.id = e.command_id
+         JOIN command_args  a ON a.id = e.args_id
+         JOIN pwds          p ON p.id = e.pwd_id
+         JOIN sessions      s ON s.id = e.session_id
+         JOIN users         u ON u.id = e.user_id",
     );
     let mut params = Vec::new();
 
     if let Some(hostname) = filter.get_hostname() {
-        sql.push_str(" WHERE hostname = ?");
+        sql.push_str(" WHERE h.name = ?");
         params.push(rusqlite::types::Value::from(hostname.clone()));
     }
 
     sql.push_str(
-        " ORDER BY time_finished DESC, time_start DESC, hostname DESC, command DESC, pwd DESC, \
-         result DESC, session_id DESC, user DESC",
+        " ORDER BY e.time_finished DESC, e.time_start DESC, h.name DESC, c.name DESC, \
+         a.text DESC, p.path DESC, e.result DESC, s.uuid DESC, u.name DESC",
     );
 
     let mut stmt = conn
@@ -108,23 +115,25 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
         .map_err(|err| Error::QueryEntries(cache_path.to_path_buf(), err))?;
     let rows = stmt
         .query_map(rusqlite::params_from_iter(params), |row| {
-            let session_id: Vec<u8> = row.get(6)?;
+            let command_name: String = row.get(3)?;
+            let args: String = row.get(4)?;
+            let session_id: Vec<u8> = row.get(7)?;
 
             Ok(Entry {
                 hostname: row.get(0)?,
                 time_finished: time_from_micros(row.get(1)?)?,
                 time_start: time_from_micros(row.get(2)?)?,
-                command: row.get(3)?,
-                pwd: path_from_bytes(row.get(4)?),
-                result: row.get(5)?,
+                command: join_command(&command_name, &args),
+                pwd: path_from_bytes(row.get(5)?),
+                result: row.get(6)?,
                 session_id: Uuid::from_slice(&session_id).map_err(|err| {
                     rusqlite::Error::FromSqlConversionFailure(
-                        6,
+                        7,
                         rusqlite::types::Type::Blob,
                         Box::new(err),
                     )
                 })?,
-                user: row.get(7)?,
+                user: row.get(8)?,
             })
         })
         .map_err(|err| Error::QueryEntries(cache_path.to_path_buf(), err))?;
@@ -156,15 +165,18 @@ pub(crate) fn sync_from_csv(data_dir: &Path, cache_path: &Path) -> Result<(), Er
         .transaction()
         .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
 
-    tx.execute("DELETE FROM entries", [])
-        .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
+    tx.execute_batch(
+        "DELETE FROM entries;
+         DELETE FROM hostnames;
+         DELETE FROM users;
+         DELETE FROM commands;
+         DELETE FROM command_args;
+         DELETE FROM pwds;
+         DELETE FROM sessions;",
+    )
+    .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
 
-    let mut insert_stmt = tx
-        .prepare(
-            "INSERT INTO entries
-             (hostname, time_finished, time_start, command, pwd, result, session_id, user)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
+    let mut stmts = InternStmts::prepare(&tx)
         .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
 
     let glob_path = data_dir.join("*.csv");
@@ -182,11 +194,13 @@ pub(crate) fn sync_from_csv(data_dir: &Path, cache_path: &Path) -> Result<(), Er
 
         for entry in csv_reader.deserialize() {
             let entry: Entry = entry.map_err(|err| Error::ReadCsvFile(path.clone(), err))?;
-            insert_entry_with_statement(&mut insert_stmt, cache_path, &entry)?;
+            stmts
+                .insert_entry(&entry)
+                .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
         }
     }
 
-    drop(insert_stmt);
+    drop(stmts);
     tx.commit()
         .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
 
@@ -249,6 +263,8 @@ fn configure_connection(conn: &Connection, cache_path: &Path) -> Result<(), Erro
         .map_err(|err| Error::ConfigureDatabase(cache_path.to_path_buf(), err))?;
     conn.pragma_update(None, "synchronous", "NORMAL")
         .map_err(|err| Error::ConfigureDatabase(cache_path.to_path_buf(), err))?;
+    conn.pragma_update(None, "foreign_keys", "ON")
+        .map_err(|err| Error::ConfigureDatabase(cache_path.to_path_buf(), err))?;
 
     Ok(())
 }
@@ -258,39 +274,7 @@ fn initialize_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> 
         "CREATE TABLE IF NOT EXISTS metadata (
              key TEXT PRIMARY KEY,
              value TEXT NOT NULL
-         );
-         CREATE TABLE IF NOT EXISTS entries (
-             hostname TEXT NOT NULL,
-             time_finished INTEGER NOT NULL,
-             time_start INTEGER NOT NULL,
-             command TEXT NOT NULL,
-             pwd BLOB NOT NULL,
-             result INTEGER NOT NULL,
-             session_id BLOB NOT NULL,
-             user TEXT NOT NULL
-         );
-         CREATE INDEX IF NOT EXISTS entries_host_order_idx
-             ON entries(
-                 hostname,
-                 time_finished DESC,
-                 time_start DESC,
-                 command DESC,
-                 pwd DESC,
-                 result DESC,
-                 session_id DESC,
-                 user DESC
-             );
-         CREATE INDEX IF NOT EXISTS entries_order_idx
-             ON entries(
-                 time_finished DESC,
-                 time_start DESC,
-                 hostname DESC,
-                 command DESC,
-                 pwd DESC,
-                 result DESC,
-                 session_id DESC,
-                 user DESC
-             );",
+         );",
     )
     .map_err(|err| Error::InitializeSchema(cache_path.to_path_buf(), err))?;
 
@@ -303,19 +287,64 @@ fn initialize_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> 
         .optional()
         .map_err(|err| Error::QueryMetadata(cache_path.to_path_buf(), err))?;
 
-    match version {
-        Some(version) if version == SCHEMA_VERSION => Ok(()),
-        Some(_) => Err(Error::SchemaVersionMismatch(cache_path.to_path_buf())),
-        None => {
-            conn.execute(
-                "INSERT INTO metadata (key, value) VALUES ('schema_version', ?1)",
-                [SCHEMA_VERSION],
-            )
-            .map_err(|err| Error::InitializeSchema(cache_path.to_path_buf(), err))?;
-
-            Ok(())
-        }
+    if let Some(ref v) = version
+        && v != SCHEMA_VERSION
+    {
+        return Err(Error::SchemaVersionMismatch(cache_path.to_path_buf()));
     }
+
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS hostnames (
+             id   INTEGER PRIMARY KEY,
+             name TEXT NOT NULL UNIQUE
+         );
+         CREATE TABLE IF NOT EXISTS users (
+             id   INTEGER PRIMARY KEY,
+             name TEXT NOT NULL UNIQUE
+         );
+         CREATE TABLE IF NOT EXISTS commands (
+             id   INTEGER PRIMARY KEY,
+             name TEXT NOT NULL UNIQUE
+         );
+         CREATE TABLE IF NOT EXISTS command_args (
+             id   INTEGER PRIMARY KEY,
+             text TEXT NOT NULL UNIQUE
+         );
+         CREATE TABLE IF NOT EXISTS pwds (
+             id   INTEGER PRIMARY KEY,
+             path BLOB NOT NULL UNIQUE
+         );
+         CREATE TABLE IF NOT EXISTS sessions (
+             id   INTEGER PRIMARY KEY,
+             uuid BLOB NOT NULL UNIQUE
+         );
+         CREATE TABLE IF NOT EXISTS entries (
+             hostname_id   INTEGER NOT NULL REFERENCES hostnames(id),
+             time_finished INTEGER NOT NULL,
+             time_start    INTEGER NOT NULL,
+             command_id    INTEGER NOT NULL REFERENCES commands(id),
+             args_id       INTEGER NOT NULL REFERENCES command_args(id),
+             pwd_id        INTEGER NOT NULL REFERENCES pwds(id),
+             result        INTEGER NOT NULL,
+             session_id    INTEGER NOT NULL REFERENCES sessions(id),
+             user_id       INTEGER NOT NULL REFERENCES users(id)
+         );
+         CREATE INDEX IF NOT EXISTS entries_host_time_idx
+             ON entries(hostname_id, time_finished DESC, time_start DESC);
+         CREATE INDEX IF NOT EXISTS entries_time_idx
+             ON entries(time_finished DESC, time_start DESC);",
+    )
+    .map_err(|err| Error::InitializeSchema(cache_path.to_path_buf(), err))?;
+
+    if version.is_none() {
+        conn.execute(
+            "INSERT INTO metadata (key, value) VALUES ('schema_version', ?1)",
+            [SCHEMA_VERSION],
+        )
+        .map_err(|err| Error::InitializeSchema(cache_path.to_path_buf(), err))?;
+    }
+
+    Ok(())
 }
 
 fn reset_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
@@ -324,7 +353,15 @@ fn reset_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
          DROP INDEX IF EXISTS entries_finished_idx;
          DROP INDEX IF EXISTS entries_host_order_idx;
          DROP INDEX IF EXISTS entries_order_idx;
+         DROP INDEX IF EXISTS entries_host_time_idx;
+         DROP INDEX IF EXISTS entries_time_idx;
          DROP TABLE IF EXISTS entries;
+         DROP TABLE IF EXISTS hostnames;
+         DROP TABLE IF EXISTS users;
+         DROP TABLE IF EXISTS commands;
+         DROP TABLE IF EXISTS command_args;
+         DROP TABLE IF EXISTS pwds;
+         DROP TABLE IF EXISTS sessions;
          DROP TABLE IF EXISTS metadata;",
     )
     .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
@@ -333,44 +370,188 @@ fn reset_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
 }
 
 fn insert_entry(conn: &Connection, cache_path: &Path, entry: &Entry) -> Result<(), Error> {
+    let map_err = |err| Error::InsertEntry(cache_path.to_path_buf(), err);
+
+    let (command_name, args) = split_command(&entry.command);
+
+    let hostname_id = intern_text(conn, "hostnames", "name", &entry.hostname).map_err(map_err)?;
+    let user_id = intern_text(conn, "users", "name", &entry.user).map_err(map_err)?;
+    let command_id = intern_text(conn, "commands", "name", command_name).map_err(map_err)?;
+    let args_id = intern_text(conn, "command_args", "text", args).map_err(map_err)?;
+    let pwd_id = intern_blob(conn, "pwds", "path", &path_to_bytes(&entry.pwd)).map_err(map_err)?;
+    let session_id =
+        intern_blob(conn, "sessions", "uuid", entry.session_id.as_bytes()).map_err(map_err)?;
+
     conn.execute(
         "INSERT INTO entries
-         (hostname, time_finished, time_start, command, pwd, result, session_id, user)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+         (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, result, \
+         session_id, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![
-            &entry.hostname,
+            hostname_id,
             entry.time_finished.timestamp_micros(),
             entry.time_start.timestamp_micros(),
-            &entry.command,
-            path_to_bytes(&entry.pwd),
+            command_id,
+            args_id,
+            pwd_id,
             i64::from(entry.result),
-            entry.session_id.as_bytes().to_vec(),
-            &entry.user,
+            session_id,
+            user_id,
         ],
     )
-    .map_err(|err| Error::InsertEntry(cache_path.to_path_buf(), err))?;
+    .map_err(map_err)?;
 
     Ok(())
 }
 
-fn insert_entry_with_statement(
-    stmt: &mut rusqlite::Statement<'_>,
-    cache_path: &Path,
-    entry: &Entry,
-) -> Result<(), Error> {
-    stmt.execute(params![
-        &entry.hostname,
-        entry.time_finished.timestamp_micros(),
-        entry.time_start.timestamp_micros(),
-        &entry.command,
-        path_to_bytes(&entry.pwd),
-        i64::from(entry.result),
-        entry.session_id.as_bytes().to_vec(),
-        &entry.user,
-    ])
-    .map_err(|err| Error::SyncDatabase(cache_path.to_path_buf(), err))?;
+fn intern_text(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    value: &str,
+) -> Result<i64, rusqlite::Error> {
+    conn.execute(
+        &format!("INSERT OR IGNORE INTO {table} ({column}) VALUES (?1)"),
+        params![value],
+    )?;
+    conn.query_row(
+        &format!("SELECT id FROM {table} WHERE {column} = ?1"),
+        params![value],
+        |row| row.get(0),
+    )
+}
 
-    Ok(())
+fn intern_blob(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    value: &[u8],
+) -> Result<i64, rusqlite::Error> {
+    conn.execute(
+        &format!("INSERT OR IGNORE INTO {table} ({column}) VALUES (?1)"),
+        params![value],
+    )?;
+    conn.query_row(
+        &format!("SELECT id FROM {table} WHERE {column} = ?1"),
+        params![value],
+        |row| row.get(0),
+    )
+}
+
+struct InternStmts<'conn> {
+    insert_hostname: rusqlite::Statement<'conn>,
+    select_hostname: rusqlite::Statement<'conn>,
+    insert_user: rusqlite::Statement<'conn>,
+    select_user: rusqlite::Statement<'conn>,
+    insert_command: rusqlite::Statement<'conn>,
+    select_command: rusqlite::Statement<'conn>,
+    insert_args: rusqlite::Statement<'conn>,
+    select_args: rusqlite::Statement<'conn>,
+    insert_pwd: rusqlite::Statement<'conn>,
+    select_pwd: rusqlite::Statement<'conn>,
+    insert_session: rusqlite::Statement<'conn>,
+    select_session: rusqlite::Statement<'conn>,
+    insert_entry: rusqlite::Statement<'conn>,
+}
+
+impl<'conn> InternStmts<'conn> {
+    fn prepare(conn: &'conn Connection) -> Result<Self, rusqlite::Error> {
+        Ok(Self {
+            insert_hostname: conn
+                .prepare("INSERT OR IGNORE INTO hostnames (name) VALUES (?1)")?,
+            select_hostname: conn.prepare("SELECT id FROM hostnames WHERE name = ?1")?,
+            insert_user: conn.prepare("INSERT OR IGNORE INTO users (name) VALUES (?1)")?,
+            select_user: conn.prepare("SELECT id FROM users WHERE name = ?1")?,
+            insert_command: conn.prepare("INSERT OR IGNORE INTO commands (name) VALUES (?1)")?,
+            select_command: conn.prepare("SELECT id FROM commands WHERE name = ?1")?,
+            insert_args: conn.prepare("INSERT OR IGNORE INTO command_args (text) VALUES (?1)")?,
+            select_args: conn.prepare("SELECT id FROM command_args WHERE text = ?1")?,
+            insert_pwd: conn.prepare("INSERT OR IGNORE INTO pwds (path) VALUES (?1)")?,
+            select_pwd: conn.prepare("SELECT id FROM pwds WHERE path = ?1")?,
+            insert_session: conn.prepare("INSERT OR IGNORE INTO sessions (uuid) VALUES (?1)")?,
+            select_session: conn.prepare("SELECT id FROM sessions WHERE uuid = ?1")?,
+            insert_entry: conn.prepare(
+                "INSERT INTO entries
+                 (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, \
+                 result, session_id, user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            )?,
+        })
+    }
+
+    fn insert_entry(&mut self, entry: &Entry) -> Result<(), rusqlite::Error> {
+        let hostname_id = intern_with(
+            &mut self.insert_hostname,
+            &mut self.select_hostname,
+            params![&entry.hostname],
+        )?;
+        let user_id = intern_with(
+            &mut self.insert_user,
+            &mut self.select_user,
+            params![&entry.user],
+        )?;
+        let (command_name, args) = split_command(&entry.command);
+        let command_id = intern_with(
+            &mut self.insert_command,
+            &mut self.select_command,
+            params![command_name],
+        )?;
+        let args_id = intern_with(
+            &mut self.insert_args,
+            &mut self.select_args,
+            params![args],
+        )?;
+        let pwd_bytes = path_to_bytes(&entry.pwd);
+        let pwd_id = intern_with(
+            &mut self.insert_pwd,
+            &mut self.select_pwd,
+            params![pwd_bytes],
+        )?;
+        let session_uuid = entry.session_id.as_bytes().to_vec();
+        let session_id = intern_with(
+            &mut self.insert_session,
+            &mut self.select_session,
+            params![session_uuid],
+        )?;
+
+        self.insert_entry.execute(params![
+            hostname_id,
+            entry.time_finished.timestamp_micros(),
+            entry.time_start.timestamp_micros(),
+            command_id,
+            args_id,
+            pwd_id,
+            i64::from(entry.result),
+            session_id,
+            user_id,
+        ])?;
+
+        Ok(())
+    }
+}
+
+fn intern_with(
+    insert: &mut rusqlite::Statement<'_>,
+    select: &mut rusqlite::Statement<'_>,
+    params: &[&dyn rusqlite::ToSql],
+) -> Result<i64, rusqlite::Error> {
+    insert.execute(params)?;
+    select.query_row(params, |row| row.get(0))
+}
+
+fn split_command(command: &str) -> (&str, &str) {
+    match command.find(' ') {
+        Some(idx) => (&command[..idx], &command[idx + 1..]),
+        None => (command, ""),
+    }
+}
+
+fn join_command(name: &str, args: &str) -> String {
+    if args.is_empty() {
+        name.to_string()
+    } else {
+        format!("{name} {args}")
+    }
 }
 
 fn time_from_micros(micros: i64) -> Result<DateTime<Utc>, rusqlite::Error> {
@@ -391,4 +572,35 @@ fn path_to_bytes(path: &Path) -> Vec<u8> {
 #[cfg(unix)]
 fn path_from_bytes(bytes: Vec<u8>) -> PathBuf {
     PathBuf::from(std::ffi::OsString::from_vec(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        join_command,
+        split_command,
+    };
+
+    #[test]
+    fn split_and_join_round_trips() {
+        for command in [
+            "",
+            "ls",
+            "ls -la",
+            "git  status",
+            "git commit -m \"msg\"",
+            "echo 'hello world'",
+        ] {
+            let (name, args) = split_command(command);
+            assert_eq!(join_command(name, args), command);
+        }
+    }
+
+    #[test]
+    fn split_command_extracts_first_token() {
+        assert_eq!(split_command("git status"), ("git", "status"));
+        assert_eq!(split_command("git"), ("git", ""));
+        assert_eq!(split_command(""), ("", ""));
+        assert_eq!(split_command("git  status"), ("git", " status"));
+    }
 }
