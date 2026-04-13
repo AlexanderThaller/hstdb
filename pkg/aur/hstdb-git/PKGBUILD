@@ -20,7 +20,7 @@ pkgver() {
 
 build() {
   cd hstdb
-  RUSTUP_TOOLCHAIN=stable cargo build --release --locked --all-features --target-dir=target
+  RUSTUP_TOOLCHAIN=stable cargo build --profile deploy --locked --all-features --target-dir=target
 }
 
 check() {
@@ -30,6 +30,7 @@ check() {
 
 package() {
   cd hstdb
-  install -Dm 755 target/release/hstdb "${pkgdir}/usr/bin/hstdb"
+  install -Dm 755 target/deploy/hstdb "${pkgdir}/usr/bin/hstdb"
   install -Dm 644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm 644 resources/hstdb.service "${pkgdir}/usr/lib/systemd/user/hstdb.service"
 }
