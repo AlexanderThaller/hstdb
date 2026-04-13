@@ -1,4 +1,4 @@
-# Maintainer: Alexander Thaller <aur+hstdb@alexander.thaller.ws>
+# Maintainer: Alexander Thaller <aur+hstdb-git@alexander.thaller.ws>
 pkgname=hstdb-git
 pkgver=2.1.0.r27.g92ab77a
 pkgrel=1
