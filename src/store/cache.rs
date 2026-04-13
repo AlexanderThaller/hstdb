@@ -105,10 +105,7 @@ pub(crate) fn get_entries(cache_path: &Path, filter: &Filter<'_>) -> Result<Vec<
         params.push(rusqlite::types::Value::from(hostname.clone()));
     }
 
-    sql.push_str(
-        " ORDER BY e.time_finished DESC, e.time_start DESC, h.name DESC, c.name DESC, a.text \
-         DESC, p.path DESC, e.result DESC, s.uuid DESC, u.name DESC",
-    );
+    sql.push_str(" ORDER BY e.time_finished DESC, e.time_start DESC, e.rowid DESC");
 
     let mut stmt = conn
         .prepare(&sql)
@@ -371,71 +368,8 @@ fn reset_schema(conn: &Connection, cache_path: &Path) -> Result<(), Error> {
 
 fn insert_entry(conn: &Connection, cache_path: &Path, entry: &Entry) -> Result<(), Error> {
     let map_err = |err| Error::InsertEntry(cache_path.to_path_buf(), err);
-
-    let (command_name, args) = split_command(&entry.command);
-
-    let hostname_id = intern_text(conn, "hostnames", "name", &entry.hostname).map_err(map_err)?;
-    let user_id = intern_text(conn, "users", "name", &entry.user).map_err(map_err)?;
-    let command_id = intern_text(conn, "commands", "name", command_name).map_err(map_err)?;
-    let args_id = intern_text(conn, "command_args", "text", args).map_err(map_err)?;
-    let pwd_id = intern_blob(conn, "pwds", "path", &path_to_bytes(&entry.pwd)).map_err(map_err)?;
-    let session_id =
-        intern_blob(conn, "sessions", "uuid", entry.session_id.as_bytes()).map_err(map_err)?;
-
-    conn.execute(
-        "INSERT INTO entries
-         (hostname_id, time_finished, time_start, command_id, args_id, pwd_id, result, session_id, \
-         user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        params![
-            hostname_id,
-            entry.time_finished.timestamp_micros(),
-            entry.time_start.timestamp_micros(),
-            command_id,
-            args_id,
-            pwd_id,
-            i64::from(entry.result),
-            session_id,
-            user_id,
-        ],
-    )
-    .map_err(map_err)?;
-
-    Ok(())
-}
-
-fn intern_text(
-    conn: &Connection,
-    table: &str,
-    column: &str,
-    value: &str,
-) -> Result<i64, rusqlite::Error> {
-    conn.execute(
-        &format!("INSERT OR IGNORE INTO {table} ({column}) VALUES (?1)"),
-        params![value],
-    )?;
-    conn.query_row(
-        &format!("SELECT id FROM {table} WHERE {column} = ?1"),
-        params![value],
-        |row| row.get(0),
-    )
-}
-
-fn intern_blob(
-    conn: &Connection,
-    table: &str,
-    column: &str,
-    value: &[u8],
-) -> Result<i64, rusqlite::Error> {
-    conn.execute(
-        &format!("INSERT OR IGNORE INTO {table} ({column}) VALUES (?1)"),
-        params![value],
-    )?;
-    conn.query_row(
-        &format!("SELECT id FROM {table} WHERE {column} = ?1"),
-        params![value],
-        |row| row.get(0),
-    )
+    let mut stmts = InternStmts::prepare(conn).map_err(map_err)?;
+    stmts.insert_entry(entry).map_err(map_err)
 }
 
 struct InternStmts<'conn> {
@@ -502,7 +436,7 @@ impl<'conn> InternStmts<'conn> {
             &mut self.select_pwd,
             params![pwd_bytes],
         )?;
-        let session_uuid = entry.session_id.as_bytes().to_vec();
+        let session_uuid = entry.session_id.as_bytes().as_slice();
         let session_id = intern_with(
             &mut self.insert_session,
             &mut self.select_session,
@@ -536,17 +470,13 @@ fn intern_with(
 
 fn split_command(command: &str) -> (&str, &str) {
     match command.find(' ') {
-        Some(idx) => (&command[..idx], &command[idx + 1..]),
+        Some(idx) => (&command[..idx], &command[idx..]),
         None => (command, ""),
     }
 }
 
 fn join_command(name: &str, args: &str) -> String {
-    if args.is_empty() {
-        name.to_string()
-    } else {
-        format!("{name} {args}")
-    }
+    format!("{name}{args}")
 }
 
 fn time_from_micros(micros: i64) -> Result<DateTime<Utc>, rusqlite::Error> {
@@ -582,6 +512,9 @@ mod tests {
             "",
             "ls",
             "ls -la",
+            "ls ",
+            " ",
+            "  ls",
             "git  status",
             "git commit -m \"msg\"",
             "echo 'hello world'",
@@ -593,9 +526,10 @@ mod tests {
 
     #[test]
     fn split_command_extracts_first_token() {
-        assert_eq!(split_command("git status"), ("git", "status"));
+        assert_eq!(split_command("git status"), ("git", " status"));
         assert_eq!(split_command("git"), ("git", ""));
         assert_eq!(split_command(""), ("", ""));
-        assert_eq!(split_command("git  status"), ("git", " status"));
+        assert_eq!(split_command("git  status"), ("git", "  status"));
+        assert_eq!(split_command("ls "), ("ls", " "));
     }
 }
