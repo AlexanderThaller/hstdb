@@ -262,7 +262,7 @@ where
 /// Prints entries using the formatted table renderer.
 pub(crate) fn default_format(display: &TableDisplay, entries: Vec<Entry>) {
     let mut table = Table::new();
-    table.load_preset("                   ");
+    table.load_style(comfy_table::presets::NOTHING);
     table.set_content_arrangement(comfy_table::ContentArrangement::Dynamic);
 
     let mut header = vec![Cell::new("tmn").add_attribute(Attribute::Bold)];

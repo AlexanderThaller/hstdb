@@ -4,11 +4,10 @@ version = "3.0.0"
 authors = ["Alexander Thaller <alexander.thaller@trivago.com>"]
 
 edition = "2024"
-rust-version = "1.88.0"
+rust-version = "1.89.0"
 
 description = "Better history management for zsh."
 documentation = "https://docs.rs/hstdb/"
-homepage = "https://github.com/AlexanderThaller/hstdb"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/AlexanderThaller/hstdb"
@@ -22,13 +21,13 @@ sqlite-cache = ["dep:rusqlite"]
 generate-readme = ["dep:askama"]
 
 [dependencies]
-askama = { version = "0.15", optional = true }
+askama = { version = "0.16", optional = true }
 bitcode = { version = "0.6", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 color-eyre = "0.6"
-comfy-table = "7"
+comfy-table = "8"
 crossbeam-utils = "0.8"
 csv = "1"
 ctrlc = { version = "3", features = ["termination"] }
@@ -42,7 +41,7 @@ hostname = "0.4"
 humantime = "2"
 log = { version = "0.4", features = ["serde"] }
 regex = "1"
-rusqlite = { version = "0.39", optional = true }
+rusqlite = { version = "0.40", optional = true }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 toml = "1"
@@ -53,23 +52,23 @@ tempfile = "3"
 pretty_assertions = "1"
 
 [lints.rust]
-missing-docs = "warn"
-missing-debug-implementations = "warn"
-rust-2018-idioms = "warn"
-unsafe-code = "forbid"
-unused-lifetimes = "warn"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unsafe_code = "forbid"
+unused_lifetimes = "warn"
 
 [lints.clippy]
-allow-attributes = "warn"
-allow-attributes-without-reason = "warn"
-dbg-macro = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+dbg_macro = "warn"
 pedantic = { level = "warn", priority = -1 }
 todo = "warn"
-unwrap-used = "warn"
-missing-panics-doc = "allow"
-missing-errors-doc = "allow"
-wildcard-enum-match-arm = "warn"
-disallowed-methods = "deny"
+unwrap_used = "warn"
+missing_panics_doc = "allow"
+missing_errors_doc = "allow"
+wildcard_enum_match_arm = "warn"
+disallowed_methods = "deny"
 
 [profile.release]
 debug = true
