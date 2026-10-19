@@ -2,8 +2,8 @@
 Description=Start hstdb server
 
 [Service]
-ExecStart=%h/.cargo/bin/hstdb server
-ExecStop=%h/.cargo/bin/hstdb stop
+ExecStart=hstdb server
+ExecStop=hstdb stop
 
 [Install]
 WantedBy=default.target

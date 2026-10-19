@@ -97,9 +97,9 @@ impl Store {
         let hostname = &entry.hostname;
 
         let folder_path = self.data_dir.as_path();
-        // Can't use .with_extension here as it will not work properly with hostnames
-        // that contain dots. See test::dot_filename_with_extension for an
-        // example.
+        // Can't use .with_extension here as it will not work properly with
+        // hostnames that contain dots. See
+        // test::dot_filename_with_extension for an example.
         let file_path = folder_path.join(format!("{hostname}.csv"));
 
         fs::create_dir_all(folder_path)
@@ -107,9 +107,9 @@ impl Store {
 
         let mut builder = csv::WriterBuilder::new();
 
-        // We only want to write the header if the file does not exist yet so we can
-        // just append new entries to the existing file without having multiple
-        // headers.
+        // We only want to write the header if the file does not exist yet so we
+        // can just append new entries to the existing file without
+        // having multiple headers.
         builder.has_headers(!file_path.exists());
 
         let index_file = std::fs::OpenOptions::new()

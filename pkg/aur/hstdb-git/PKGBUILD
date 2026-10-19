@@ -1,0 +1,36 @@
+# Maintainer: Alexander Thaller <aur+hstdb-git@alexander.thaller.ws>
+pkgname=hstdb-git
+pkgver=2.1.0.r27.g92ab77a
+pkgrel=1
+pkgdesc="Better history management for zsh."
+arch=('x86_64')
+url="https://github.com/AlexanderThaller/hstdb"
+license=('MIT')
+depends=('sqlite')
+makedepends=('cargo' 'git')
+provides=('hstdb')
+conflicts=('hstdb')
+source=('git+https://github.com/AlexanderThaller/hstdb.git')
+sha512sums=('SKIP')
+
+pkgver() {
+  cd hstdb
+  git describe --tags --long --abbrev=7 | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd hstdb
+  RUSTUP_TOOLCHAIN=stable cargo build --profile deploy --locked --all-features --target-dir=target
+}
+
+check() {
+  cd hstdb
+  RUSTUP_TOOLCHAIN=stable cargo test --release --locked --target-dir=target
+}
+
+package() {
+  cd hstdb
+  install -Dm 755 target/deploy/hstdb "${pkgdir}/usr/bin/hstdb"
+  install -Dm 644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm 644 resources/hstdb.service "${pkgdir}/usr/lib/systemd/user/hstdb.service"
+}
